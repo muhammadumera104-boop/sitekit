@@ -1,0 +1,44 @@
+'use client';
+import { useParams } from 'next/navigation';
+import { Forbidden, Protected, Shell } from '@/components/Shell';
+import { TenantProvider } from '@/components/TenantCtx';
+import { Badge, Loading, useLoad } from '@/components/ui';
+import { api } from '@/lib/api';
+
+function Inner({ slug, children }) {
+  const { data, error, loading, reload } = useLoad(() => api('/tenant/me', { tenant: slug }), [slug]);
+  if (loading && !data) return <Loading />;
+  if (error) return <Forbidden message={error} />;
+  const base = `/dashboard/${slug}`;
+  const nav = [
+    { href: base, label: 'Overview', icon: '▦', exact: true },
+    { sep: 'Sales' },
+    { href: `${base}/orders`, label: 'Orders', icon: '🧾', perm: 'orders.view' },
+    { href: `${base}/pos`, label: 'Point of sale', icon: '💳', perm: 'pos.use', feature: 'pos' },
+    { href: `${base}/inventory`, label: 'Inventory', icon: '📦', perm: 'inventory.manage', feature: 'inventory' },
+    { href: `${base}/branches`, label: 'Branches', icon: '🏬', perm: 'branches.manage' },
+    { sep: 'Content' },
+    { href: `${base}/menu`, label: data.tenant.templateKey === 'store' ? 'Products' : 'Menu', icon: '🍽️', perm: 'products.manage' },
+    { href: `${base}/pages`, label: 'Pages', icon: '📄', perm: 'content.manage' },
+    { href: `${base}/media`, label: 'Media & gallery', icon: '🖼️', perm: 'content.manage' },
+    { href: `${base}/messages`, label: 'Messages', icon: '✉️', perm: 'messages.manage' },
+    { sep: 'Site' },
+    { href: `${base}/settings`, label: 'Site settings', icon: '⚙️', perm: 'settings.edit' },
+    { href: `${base}/preview`, label: 'Preview', icon: '👁️', perm: 'content.manage' },
+    { href: `${base}/analytics`, label: 'Analytics', icon: '📈', perm: 'analytics.view' },
+    { sep: 'Team' },
+    { href: `${base}/users`, label: 'Users', icon: '👥', perm: 'tenantUsers.manage' },
+    { href: `${base}/audit`, label: 'Audit log', icon: '📜', perm: 'audit.view' },
+  ].filter((n) => !n.feature || data.features?.[n.feature]);
+  const banner = data.impersonating && <div className="imp-banner">⚠ You are viewing <strong>{data.tenant.name}</strong>&apos;s dashboard as platform support. This session is recorded in the audit log.</div>;
+  return (
+    <TenantProvider value={{ slug, tenant: data.tenant, features: data.features || {}, branchId: data.branchId, impersonating: data.impersonating, reload }}>
+      <div style={{ '--brand': data.tenant.primary || undefined, display: 'contents' }}><Shell title={<span>{data.tenant.name} <Badge>{data.tenant.status}</Badge></span>} brand={data.tenant.name} logo={data.tenant.logo} nav={nav} banner={banner}>{children}</Shell></div>
+    </TenantProvider>
+  );
+}
+
+export default function TenantLayout({ children }) {
+  const { slug } = useParams();
+  return <Protected area="tenant" slug={slug}><Inner slug={slug}>{children}</Inner></Protected>;
+}

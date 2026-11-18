@@ -1,0 +1,11 @@
+.env
+node_modules
+.next
+uploads/*
+!uploads/.gitkeep
+atlas-credentials.env
+*.log
+.env.*
+!.env.example
+*.err
+.claude/
