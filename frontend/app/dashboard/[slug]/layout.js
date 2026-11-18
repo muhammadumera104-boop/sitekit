@@ -13,10 +13,12 @@ function Inner({ slug, children }) {
   const nav = [
     { href: base, label: 'Overview', icon: '▦', exact: true },
     { sep: 'Sales' },
+    { href: `${base}/deliveries`, label: 'My deliveries', icon: '🛵', perm: 'deliveries.use' },
     { href: `${base}/orders`, label: 'Orders', icon: '🧾', perm: 'orders.view' },
     { href: `${base}/pos`, label: 'Point of sale', icon: '💳', perm: 'pos.use', feature: 'pos' },
     { href: `${base}/inventory`, label: 'Inventory', icon: '📦', perm: 'inventory.manage', feature: 'inventory' },
     { href: `${base}/branches`, label: 'Branches', icon: '🏬', perm: 'branches.manage' },
+    { href: `${base}/areas`, label: 'Delivery areas', icon: '🗺️', perm: 'areas.manage' },
     { sep: 'Content' },
     { href: `${base}/menu`, label: data.tenant.templateKey === 'store' ? 'Products' : 'Menu', icon: '🍽️', perm: 'products.manage' },
     { href: `${base}/pages`, label: 'Pages', icon: '📄', perm: 'content.manage' },

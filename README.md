@@ -56,6 +56,13 @@ Config lives in `backend/.env` (already filled with your Atlas URI and generated
 Admin Portal -> **Feature toggles** (global kill switch, Super Admin) and Tenants -> *store* -> **Feature toggles for this store** (Default / Always on / Always off).
 Effective value = global switch AND (store override, else template default). Features: cart, discounts ("Add to cart with discount"), online orders, search, gallery, contact form, WhatsApp button, inventory, point of sale. The public site, dashboard menu and API all follow the toggles.
 
+## Ordering (delivery-site flow)
+
+Customer: pick **city -> area** (header shows "Delivering to ...") -> add items (special instructions per item) -> cart with **tax + delivery fee** -> guest checkout (delivery or pickup, landmark, alternate phone, gift, change request, cash on delivery) -> **/{slug}/track** with order number + phone. Also `/{slug}/complaint` and `/{slug}/locations`.
+Owner/Manager: Dashboard -> **Delivery areas** (cities, areas, fees, minimum order, branch, tax %, ETA). Orders flow `new -> confirmed -> preparing -> ready -> out for delivery -> delivered` (pickup/POS end at `completed`); assign a **rider** on the order.
+**Staff login button** on every store site -> role chooser: Owner, Manager, Worker (cashier/vendor/editor), Delivery Rider. Each door only accepts its own roles; the rider lands on *My deliveries* and only sees orders assigned to them.
+Demo accounts per store: `owner@`, `manager@`, `editor@`, `cashier@`, `vendor@`, `rider@<slug>.test`. Online card payments are not built (cash on delivery / pay at pickup only).
+
 ## Commerce
 
 - **Online checkout:** `POST /api/public/tenants/:slug/orders` (cash on delivery). Prices and stock are always computed on the server.

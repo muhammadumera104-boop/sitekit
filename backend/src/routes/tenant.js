@@ -244,11 +244,11 @@ router.patch('/messages/:id', msgPerm, wrap(async (req, res) => {
 // ---------- Tenant users (FR-D7) ----------
 const usersPerm = requirePerm('tenantUsers.manage');
 router.get('/users', usersPerm, wrap(async (req, res) => res.json({
-  users: await User.find({ tenantId: req.tenantId }).select('name email role status branchId lastLogin createdAt').sort({ createdAt: 1 }).lean(),
+  users: await User.find({ tenantId: req.tenantId }).select('name email phone role status branchId lastLogin createdAt').sort({ createdAt: 1 }).lean(),
 })));
 const tUserSchema = z.object({
   name: z.string().trim().min(2), email: z.string().email(), role: z.enum(TENANT_ROLES), status: z.enum(['active', 'disabled']).optional(),
-  password: z.string().min(8).optional(), branchId: z.string().nullable().optional(),
+  password: z.string().min(8).optional(), branchId: z.string().nullable().optional(), phone: z.string().trim().max(30).optional(),
 });
 // Cashiers and vendors work inside one branch (vendors must have one); other roles are not branch-bound.
 async function resolveBranch(req, role, branchId, current) {
@@ -260,7 +260,7 @@ async function resolveBranch(req, role, branchId, current) {
 }
 router.post('/users', usersPerm, wrap(async (req, res) => {
   const d = tUserSchema.parse(req.body);
-  const user = new User({ name: d.name, email: d.email.toLowerCase(), role: d.role, tenantId: req.tenantId, status: d.password ? 'active' : 'invited', branchId: await resolveBranch(req, d.role, d.branchId) });
+  const user = new User({ name: d.name, email: d.email.toLowerCase(), role: d.role, tenantId: req.tenantId, status: d.password ? 'active' : 'invited', phone: d.phone, branchId: await resolveBranch(req, d.role, d.branchId) });
   let inviteLink = null;
   if (d.password) user.passwordHash = await bcrypt.hash(d.password, 12);
   else {
@@ -281,6 +281,7 @@ router.put('/users/:id', usersPerm, wrap(async (req, res) => {
   if (d.role && d.role !== user.role) await audit(req, 'role.change', { details: { user: user.email, from: user.role, to: d.role } });
   user.branchId = await resolveBranch(req, d.role || user.role, d.branchId, user.branchId);
   if (d.name) user.name = d.name;
+  if (d.phone !== undefined) user.phone = d.phone;
   if (d.role) user.role = d.role;
   if (d.status) user.status = d.status;
   if (d.password) user.passwordHash = await bcrypt.hash(d.password, 12);

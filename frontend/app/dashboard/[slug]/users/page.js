@@ -7,7 +7,7 @@ import { useTenant } from '@/components/TenantCtx';
 import { Protected } from '@/components/Shell';
 import { Alert, Badge, Field, Loading, Modal, useLoad } from '@/components/ui';
 
-const ROLES = [['tenant_owner', 'Owner'], ['tenant_manager', 'Manager'], ['tenant_editor', 'Editor'], ['tenant_cashier', 'Cashier'], ['tenant_vendor', 'Vendor']];
+const ROLES = [['tenant_owner', 'Owner'], ['tenant_manager', 'Manager'], ['tenant_editor', 'Editor'], ['tenant_cashier', 'Cashier'], ['tenant_vendor', 'Vendor'], ['tenant_rider', 'Delivery rider']];
 const NEEDS_BRANCH = ['tenant_cashier', 'tenant_vendor'];
 
 export default function TenantUsers() {
@@ -48,13 +48,13 @@ export default function TenantUsers() {
 
 function Form({ u, slug, branches, self, onClose, onDone }) {
   const isNew = !u._id;
-  const [f, setF] = useState({ name: u.name || '', email: u.email || '', role: u.role || 'tenant_editor', branchId: u.branchId || '', password: '' });
+  const [f, setF] = useState({ name: u.name || '', email: u.email || '', role: u.role || 'tenant_editor', branchId: u.branchId || '', phone: u.phone || '', password: '' });
   const [err, setErr] = useState('');
   const [fe, setFe] = useState({});
   async function save(e) {
     e.preventDefault(); setErr(''); setFe({});
     try {
-      const body = { name: f.name, role: f.role, ...(NEEDS_BRANCH.includes(f.role) ? { branchId: f.branchId || null } : {}), ...(isNew ? { email: f.email } : {}), ...(f.password ? { password: f.password } : {}) };
+      const body = { name: f.name, role: f.role, phone: f.phone, ...(NEEDS_BRANCH.includes(f.role) ? { branchId: f.branchId || null } : {}), ...(isNew ? { email: f.email } : {}), ...(f.password ? { password: f.password } : {}) };
       const d = await api(isNew ? '/tenant/users' : `/tenant/users/${u._id}`, { method: isNew ? 'POST' : 'PUT', body, tenant: slug });
       onDone(isNew ? `User added.${d.inviteLink ? ` Invite link (dev): ${d.inviteLink}` : ''}` : 'User updated.');
     } catch (x) { setErr(x.message); setFe(x.errors || {}); }
@@ -65,7 +65,8 @@ function Form({ u, slug, branches, self, onClose, onDone }) {
         <Alert>{err}</Alert>
         <Field label="Name" value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} error={fe.name} required />
         <Field label="Email" type="email" value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} error={fe.email} disabled={!isNew} required />
-        <Field label="Role" hint="Owner: full control · Manager: content & settings · Editor: content only · Cashier: point of sale & orders · Vendor: products & stock of one branch"><select value={f.role} disabled={self} onChange={(e) => setF({ ...f, role: e.target.value })}>{ROLES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></Field>
+        <Field label="Role" hint="Owner: full control · Manager: content & settings · Editor: content only · Cashier: point of sale & orders · Vendor: products & stock of one branch · Delivery rider: own deliveries"><select value={f.role} disabled={self} onChange={(e) => setF({ ...f, role: e.target.value })}>{ROLES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></Field>
+        {f.role === 'tenant_rider' && <Field label="Phone" value={f.phone} onChange={(e) => setF({ ...f, phone: e.target.value })} hint="Shown to the customer when the rider is on the way." />}
         {NEEDS_BRANCH.includes(f.role) && (
           <Field label="Branch" error={fe.branchId} hint={f.role === 'tenant_vendor' ? 'A vendor only manages the products of this branch.' : 'A cashier sells and sees orders for this branch.'}>
             <select value={f.branchId} onChange={(e) => setF({ ...f, branchId: e.target.value })} required={f.role === 'tenant_vendor'}>

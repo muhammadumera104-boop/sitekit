@@ -145,11 +145,14 @@ test('per-store toggle turns the POS off for that store only', async () => {
 });
 
 test('online checkout: needs the cart feature, prices come from the server', async () => {
-  const { item } = await publicItem('kravemart', 'Mixed Vegetables 1kg');
-  const body = { items: [{ id: item.id, qty: 1 }], customer: { name: 'Test Buyer', phone: '03001234567', address: 'House 1, Karachi' } };
+  const { site, item } = await publicItem('kravemart', 'Mixed Vegetables 1kg');
+  const area = site.locations[0].areas[0];
+  const body = { items: [{ id: item.id, qty: 1 }], areaId: area.id, customer: { name: 'Test Buyer', phone: '03001234567', address: 'House 1, Karachi' } };
+  // a store with delivery areas needs one
+  assert.equal((await call('/public/tenants/kravemart/orders', { method: 'POST', body: { ...body, areaId: null } })).data.code, 'AREA_REQUIRED');
   const ok = await call('/public/tenants/kravemart/orders', { method: 'POST', body: { ...body, total: 1 } });
   assert.equal(ok.status, 201);
-  assert.equal(ok.data.order.total, item.salePrice, 'a client-sent total is ignored');
+  assert.equal(ok.data.order.total, item.salePrice + area.deliveryFee, 'a client-sent total is ignored');
   const owner = await login('owner@kravemart.test', 'kravemart');
   const list = await call('/tenant/orders?source=online', { token: owner });
   const mine = list.data.items.find((o) => o.number === ok.data.order.number);
@@ -157,10 +160,17 @@ test('online checkout: needs the cart feature, prices come from the server', asy
   assert.equal(mine.status, 'new');
   await call(`/tenant/orders/${mine._id}`, { method: 'PATCH', token: owner, body: { status: 'cancelled' } }); // give the stock back
 
-  // restaurants have the cart off by default
+  // a store with the cart switched off does not take orders
+  const admin = await login(SUPER);
+  const kbt = (await call('/admin/tenants?q=kababjees', { token: admin })).data.items[0];
   const kb = (await publicItem('kababjees', 'Soft Drink')).item;
-  const r = await call('/public/tenants/kababjees/orders', { method: 'POST', body: { items: [{ id: kb.id, qty: 1 }], customer: body.customer } });
-  assert.equal(r.status, 403);
+  try {
+    await call(`/admin/tenants/${kbt._id}/features`, { method: 'PUT', token: admin, body: { features: { cart: false } } });
+    const r = await call('/public/tenants/kababjees/orders', { method: 'POST', body: { items: [{ id: kb.id, qty: 1 }], customer: body.customer } });
+    assert.equal(r.status, 403);
+  } finally {
+    await call(`/admin/tenants/${kbt._id}/features`, { method: 'PUT', token: admin, body: { features: { cart: null } } });
+  }
   // empty / invalid carts
   assert.equal((await call('/public/tenants/kravemart/orders', { method: 'POST', body: { items: [], customer: body.customer } })).status, 400);
   assert.equal((await call('/public/tenants/kravemart/orders', { method: 'POST', body: { items: [{ id: 'zzz', qty: 1 }], customer: body.customer } })).status, 400);

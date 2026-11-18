@@ -47,7 +47,7 @@ export default async function ItemPage({ params }) {
           {item.lowStock && <p className="low-stock">Only {item.lowStock} left in stock!</p>}
           <p className="lead left" style={{ marginBottom: 22 }}>{item.description || 'Freshly prepared for you.'}</p>
           {cartOn
-            ? <AddToCart slug={t.slug} id={item.id} disabled={!item.isAvailable} backHref={listHref} label={item.discountPercent > 0 ? 'Add to cart with discount' : 'Add to cart'} />
+            ? <AddToCart id={item.id} disabled={!item.isAvailable} label={item.discountPercent > 0 ? 'Add to cart with discount' : 'Add to cart'} />
             : <div className="row">{item.isAvailable ? <Link className="cta" href={`/${t.slug}/contact`}>Order or enquire</Link> : <span className="sold">Currently unavailable</span>}<Link className="cta alt dark" href={listHref}>Back to menu</Link></div>}
         </div>
       </div>

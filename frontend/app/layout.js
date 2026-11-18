@@ -1,5 +1,6 @@
 import './globals.css';
 import './site.css';
+import './ordering.css';
 import { AuthProvider } from '@/lib/auth';
 
 export const metadata = {

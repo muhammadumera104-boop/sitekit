@@ -47,6 +47,8 @@ export default function Overview() {
   }
   const base = `/dashboard/${slug}`;
   const links = [
+    can('deliveries.use') && [`${base}/deliveries`, 'My deliveries'],
+    can('areas.manage') && [`${base}/areas`, 'Delivery areas & tax'],
     can('pos.use') && features.pos && [`${base}/pos`, 'Open point of sale'], can('orders.view') && [`${base}/orders`, 'View orders'],
     can('inventory.manage') && features.inventory && [`${base}/inventory`, 'Manage stock'],
     can('products.manage') && [`${base}/menu`, tenant.templateKey === 'store' ? 'Manage products' : 'Manage menu'],

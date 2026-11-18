@@ -3,6 +3,10 @@ import ContactForm from './ContactForm';
 import StoreCatalog, { Price } from './StoreCatalog';
 import SiteHeader from './SiteHeader';
 import Gallery from './Gallery';
+import { OrderingProvider } from './Ordering';
+import Checkout from './Checkout';
+import TrackOrder from './TrackOrder';
+import ComplaintForm from './ComplaintForm';
 import { money } from '@/lib/util';
 
 // Data-driven template renderer (FR-W2): layout comes from the template key, content from the tenant's data.
@@ -73,6 +77,7 @@ export default function SiteView({ site, page, preview = false, detail = null })
   const itemHref = (i) => (preview ? null : `/${t.slug}/${menuSlug}/${i.id}`);
   const style = { '--primary': t.theme?.primary, '--secondary': t.theme?.secondary, '--fh': t.theme?.fontHeading, '--fb': t.theme?.fontBody, '--r': t.theme?.radius, '--on-primary': onColor(t.theme?.primary), '--on-sec': onColor(t.theme?.secondary) };
   const current = page === 'menu' ? menuSlug : page;
+  const ext = ['checkout', 'track', 'complaint', 'locations'].includes(page) ? page : null; // ordering pages
 
   const nav = [
     { slug: '', title: 'Home' },
@@ -83,8 +88,8 @@ export default function SiteView({ site, page, preview = false, detail = null })
     sec.contact && { slug: 'contact', title: 'Contact' },
   ].filter(Boolean).map((n) => ({ ...n, href: href(n.slug) }));
 
-  const showAll = !current && !detail;
-  const show = (name) => !detail && (showAll || current === name);
+  const showAll = !current && !detail && !ext;
+  const show = (name) => !detail && !ext && (showAll || current === name);
   const today = new Date().toLocaleDateString('en-US', { weekday: 'long' });
   const todayHours = t.openingHours?.find((h) => h.day === today);
   const custom = site.pages.find((p) => p.slug === current);
@@ -92,8 +97,9 @@ export default function SiteView({ site, page, preview = false, detail = null })
 
   return (
     <div className={`site t-${t.templateKey}`} style={style}>
+    <OrderingProvider slug={t.slug} menuSlug={menuSlug} menu={site.menu} features={features} ordering={site.ordering} locations={site.locations || []} preview={preview}>
       {preview && <div className="preview-bar">Preview — this is how your website looks{t.status !== 'active' ? ' (not published yet)' : ''}</div>}
-      <SiteHeader name={t.name} logo={t.branding?.logo} home={href('')} nav={nav} current={current || ''} />
+      <SiteHeader name={t.name} logo={t.branding?.logo} home={href('')} nav={nav} current={current || ''} staffHref={preview ? null : `/${t.slug}/login`} trackHref={features.orderTracking && features.cart && !preview ? `/${t.slug}/track` : null} />
 
       <main>
         {showAll && (
@@ -123,7 +129,21 @@ export default function SiteView({ site, page, preview = false, detail = null })
 
         {detail && <section className="sec"><div className="wrap">{detail}</div></section>}
 
-        {!showAll && !detail && current && !['about', 'gallery', 'contact', menuSlug].includes(current) && !custom && (
+        {ext === 'checkout' && <section className="sec"><div className="wrap"><Checkout /></div></section>}
+        {ext === 'track' && <section className="sec"><div className="wrap narrow"><span className="eyebrow center">Order status</span><h2>Track your order</h2><p className="sub">Enter your order number and the mobile number you used.</p><TrackOrder slug={t.slug} preview={preview} /></div></section>}
+        {ext === 'complaint' && <section className="sec"><div className="wrap"><span className="eyebrow center">We are listening</span><h2>Submit your complaint</h2><p className="sub">From complaint to care — tell us what went wrong and we will make it right.</p><ComplaintForm slug={t.slug} preview={preview} /></div></section>}
+        {ext === 'locations' && (
+          <section className="sec"><div className="wrap">
+            <span className="eyebrow center">Find us</span><h2>Our locations</h2>
+            <div className="loc-cards">
+              {(site.branches || []).map((b) => <div className="box" key={b.id}><h3>{b.name}</h3>{b.address && <p>📍 {b.address}</p>}{b.phone && <p>📞 <a href={`tel:${b.phone}`}>{b.phone}</a></p>}</div>)}
+              {!site.branches?.length && <p className="muted center">Locations coming soon.</p>}
+            </div>
+            {(site.locations || []).length > 0 && <><h3 style={{ marginTop: 36 }}>We deliver to</h3>{site.locations.map((c) => <p key={c.city}><strong>{c.city}:</strong> <span className="muted">{c.areas.map((a) => a.name).join(' · ')}</span></p>)}</>}
+          </div></section>
+        )}
+
+        {!showAll && !detail && !ext && current && !['about', 'gallery', 'contact', menuSlug].includes(current) && !custom && (
           <section className="sec"><div className="wrap center"><h2>Page not found</h2><Link className="cta" href={href('')}>Back to home</Link></div></section>
         )}
 
@@ -154,7 +174,7 @@ export default function SiteView({ site, page, preview = false, detail = null })
             <span className="eyebrow center">{isStore ? 'Shop' : 'Our food'}</span>
             <h2>{isStore ? 'Our Products' : 'Our Menu'}</h2>
             {t.branding?.tagline && <p className="sub">{t.branding.tagline}</p>}
-            {useCatalog ? <StoreCatalog slug={t.slug} menu={site.menu} features={features} itemBase={menuSlug} preview={preview} /> : <RestaurantMenu menu={site.menu} itemHref={itemHref} />}
+            {useCatalog ? <StoreCatalog menu={site.menu} features={features} preview={preview} /> : <RestaurantMenu menu={site.menu} itemHref={itemHref} />}
           </div></section>
         )}
 
@@ -192,7 +212,10 @@ export default function SiteView({ site, page, preview = false, detail = null })
             <div className="site-logo light">{t.branding?.logo && <img src={t.branding.logo} alt="" />}<span className="logo-text">{t.name}</span></div>
             <p style={{ opacity: .75, marginTop: 10 }}>{t.branding?.tagline}</p>
           </div>
-          <div><h4>Explore</h4>{nav.slice(0, 6).map((n) => <Link key={n.slug} href={n.href}>{n.title}</Link>)}</div>
+          <div><h4>Explore</h4>{nav.slice(0, 6).map((n) => <Link key={n.slug} href={n.href}>{n.title}</Link>)}
+            {!preview && features.orderTracking && features.cart && <Link href={`/${t.slug}/track`}>Track order</Link>}
+            {!preview && features.complaints && <Link href={`/${t.slug}/complaint`}>Submit a complaint</Link>}
+            {!preview && (site.branches?.length > 0 || site.locations?.length > 0) && <Link href={`/${t.slug}/locations`}>Our locations</Link>}</div>
           <div><h4>Contact</h4>
             {t.contact?.phone && <span>{t.contact.phone}</span>}{t.contact?.email && <span>{t.contact.email}</span>}{t.contact?.address && <span>{t.contact.address}</span>}
             <div style={{ marginTop: 10 }}>{Object.entries(t.socials || {}).filter(([, v]) => v).map(([k, v]) => (
@@ -202,6 +225,7 @@ export default function SiteView({ site, page, preview = false, detail = null })
         </div>
         <div className="copy">© {new Date().getFullYear()} {t.name}. All rights reserved.{!preview && <> · <Link href={`/${t.slug}/login`} style={{ opacity: .6 }}>Staff login</Link></>}</div>
       </footer>
+    </OrderingProvider>
     </div>
   );
 }

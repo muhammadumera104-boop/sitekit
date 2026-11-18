@@ -37,6 +37,14 @@ const Tenant = mongoose.model('Tenant', new Schema({
   },
   seo: { title: String, description: String, ogImage: String },
   features: { type: Schema.Types.Mixed, default: {} },
+  ordering: {
+    taxPercent: { type: Number, default: 0, min: 0, max: 50 },
+    taxInclusive: { type: Boolean, default: true }, // listed prices already include tax
+    taxLabel: { type: String, default: 'Tax' },
+    minOrder: { type: Number, default: 0, min: 0 },
+    etaMinutes: { type: Number, default: 45, min: 5, max: 240 },
+    payments: { type: [String], default: ['cod'] },
+  },
   owner: { name: String, email: String, phone: String },
   createdBy: { type: oid, ref: 'User' },
 }, opts));
@@ -48,6 +56,7 @@ const User = mongoose.model('User', new Schema({
   role: { type: String, enum: Object.values(R), required: true },
   tenantId: { type: oid, ref: 'Tenant', default: null, index: true },
   branchId: { type: oid, ref: 'Branch', default: null },
+  phone: String,
   status: { type: String, enum: ['active', 'disabled', 'invited'], default: 'invited' },
   failedAttempts: { type: Number, default: 0 },
   lockUntil: Date,
@@ -109,7 +118,8 @@ const Media = mongoose.model('Media', new Schema({
 }, opts));
 
 const Message = mongoose.model('Message', new Schema({
-  tenantId, name: { type: String, required: true }, email: String, phone: String, message: { type: String, required: true },
+  tenantId, type: { type: String, enum: ['contact', 'complaint'], default: 'contact' }, orderNumber: String,
+  name: { type: String, required: true }, email: String, phone: String, message: { type: String, required: true },
   status: { type: String, enum: ['new', 'read', 'archived'], default: 'new' },
 }, opts));
 
@@ -135,15 +145,28 @@ const Branch = mongoose.model('Branch', new Schema({
   tenantId, name: { type: String, required: true }, address: String, phone: String, isActive: { type: Boolean, default: true },
 }, opts));
 
+const ServiceArea = mongoose.model('ServiceArea', new Schema({
+  tenantId, city: { type: String, required: true, trim: true }, name: { type: String, required: true, trim: true },
+  branchId: { type: oid, ref: 'Branch', default: null },
+  deliveryFee: { type: Number, default: 0, min: 0 }, minOrder: { type: Number, default: 0, min: 0 }, isActive: { type: Boolean, default: true },
+}, opts));
+
+const ORDER_STATUSES = ['new', 'confirmed', 'preparing', 'ready', 'out_for_delivery', 'delivered', 'completed', 'cancelled'];
 const orderSchema = new Schema({
   tenantId,
   number: { type: String, index: true },
   source: { type: String, enum: ['online', 'pos'], default: 'online' },
   branchId: { type: oid, ref: 'Branch', default: null },
-  customer: { name: String, phone: String, address: String, note: String },
-  items: [{ itemId: oid, name: String, price: Number, discountPercent: Number, unitPrice: Number, qty: Number }],
-  subtotal: Number, discount: Number, total: Number,
-  status: { type: String, enum: ['new', 'confirmed', 'preparing', 'completed', 'cancelled'], default: 'new', index: true },
+  orderType: { type: String, enum: ['delivery', 'pickup', 'dine_in'], default: 'delivery' },
+  city: String, area: String, areaId: { type: oid, ref: 'ServiceArea', default: null },
+  customer: { title: String, name: String, phone: String, altPhone: String, address: String, landmark: String, email: String, note: String },
+  instructions: String, changeFor: Number,
+  gift: { isGift: Boolean, recipientName: String, recipientPhone: String, message: String },
+  items: [{ itemId: oid, name: String, price: Number, discountPercent: Number, unitPrice: Number, qty: Number, note: String }],
+  subtotal: Number, discount: Number, tax: { type: Number, default: 0 }, deliveryFee: { type: Number, default: 0 }, total: Number, // total = what the customer pays
+  riderId: { type: oid, ref: 'User', default: null, index: true },
+  history: [{ status: String, at: { type: Date, default: Date.now }, by: String, _id: false }],
+  status: { type: String, enum: ORDER_STATUSES, default: 'new', index: true },
   paymentStatus: { type: String, enum: ['unpaid', 'paid'], default: 'unpaid' },
   paymentMethod: { type: String, enum: ['cash', 'card', 'online', 'cod'], default: 'cod' },
   createdBy: { type: oid, ref: 'User' },
@@ -153,4 +176,4 @@ const Order = mongoose.model('Order', orderSchema);
 
 const PlatformSetting = mongoose.model('PlatformSetting', new Schema({ key: { type: String, unique: true }, value: Schema.Types.Mixed }, opts));
 
-module.exports = { Branch, Order, PlatformSetting, Tenant, User, Role, Template, Page, MenuCategory, MenuItem, Media, Message, AuditLog, Session, Visit };
+module.exports = { ServiceArea, Branch, Order, PlatformSetting, Tenant, User, Role, Template, Page, MenuCategory, MenuItem, Media, Message, AuditLog, Session, Visit };

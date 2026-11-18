@@ -4,7 +4,7 @@ const rateLimit = require('express-rate-limit');
 const { z } = require('zod');
 const env = require('../config/env');
 const { User, Tenant, Session } = require('../models');
-const { permissionsFor, PLATFORM_ROLES } = require('../config/permissions');
+const { permissionsFor, PLATFORM_ROLES, DOORS } = require('../config/permissions');
 const { authenticate, signAccess } = require('../middleware/auth');
 const { HttpError, wrap, sha256, randomToken } = require('../utils/helpers');
 const { audit } = require('../services/audit');
@@ -33,7 +33,7 @@ async function startSession(res, user) {
 }
 
 router.post('/login', loginLimiter, wrap(async (req, res) => {
-  const { email, password, tenantSlug } = z.object({ email: z.string().email(), password: z.string().min(1), tenantSlug: z.string().max(60).optional() }).parse(req.body);
+  const { email, password, tenantSlug, door } = z.object({ email: z.string().email(), password: z.string().min(1), tenantSlug: z.string().max(60).optional(), door: z.enum(Object.keys(DOORS)).optional() }).parse(req.body);
   const user = await User.findOne({ email: email.toLowerCase() });
   const fail = () => new HttpError(401, 'Invalid email or password');
   if (!user || !user.passwordHash) throw fail();
@@ -53,6 +53,8 @@ router.post('/login', loginLimiter, wrap(async (req, res) => {
   if (tenantSlug) {
     const t = await Tenant.findOne({ slug: tenantSlug.toLowerCase() }).select('_id');
     scopeOk = !!t && !!user.tenantId && String(user.tenantId) === String(t._id);
+    // Optional role door (owner / manager / worker / rider): a person must use the door of their own role.
+    if (scopeOk && door && !DOORS[door].includes(user.role)) scopeOk = false;
   } else scopeOk = PLATFORM_ROLES.includes(user.role);
   if (!scopeOk) {
     await audit(req, 'login.wrong-door', { userId: user._id, tenantId: user.tenantId, details: { door: tenantSlug || 'platform' } });

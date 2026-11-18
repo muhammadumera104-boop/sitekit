@@ -7,7 +7,7 @@ import { useAuth } from '@/lib/auth';
 import { Alert, Badge, Field, Loading, Modal, Pager, useLoad } from '@/components/ui';
 
 const PLATFORM = ['super_admin', 'platform_staff'];
-const TENANT = ['tenant_owner', 'tenant_manager', 'tenant_editor', 'tenant_cashier', 'tenant_vendor'];
+const TENANT = ['tenant_owner', 'tenant_manager', 'tenant_editor', 'tenant_cashier', 'tenant_vendor', 'tenant_rider'];
 
 function UsersInner() {
   const { user: me } = useAuth();

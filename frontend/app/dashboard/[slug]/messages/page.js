@@ -25,7 +25,7 @@ export default function Messages() {
         <>
           {data?.items.map((m) => (
             <div className="card" key={m._id} style={{ borderLeft: m.status === 'new' ? '4px solid var(--brand)' : undefined }}>
-              <div className="row between"><div><strong>{m.name}</strong> <Badge>{m.status}</Badge><div className="muted" style={{ fontSize: 13 }}>{[m.email, m.phone].filter(Boolean).join(' · ')} · {fmtDate(m.createdAt)}</div></div>
+              <div className="row between"><div><strong>{m.name}</strong> <Badge>{m.status}</Badge>{m.type === 'complaint' && <span className="badge cancelled" style={{ marginLeft: 6 }}>complaint{m.orderNumber ? ` · #${m.orderNumber}` : ''}</span>}<div className="muted" style={{ fontSize: 13 }}>{[m.email, m.phone].filter(Boolean).join(' · ')} · {fmtDate(m.createdAt)}</div></div>
                 <div className="row">
                   {m.status !== 'read' && <button className="btn sm" onClick={() => mark(m, 'read')}>Mark read</button>}
                   {m.status !== 'new' && <button className="btn sm" onClick={() => mark(m, 'new')}>Mark unread</button>}

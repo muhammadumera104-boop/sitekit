@@ -6,7 +6,8 @@ import { api, getToken, setToken, refreshSession } from './api';
 const Ctx = createContext(null);
 export const useAuth = () => useContext(Ctx);
 
-export const homeFor = (u) => (u.isPlatform ? '/admin' : `/dashboard/${u.tenantSlug}`);
+// Each role lands where it works: riders on their deliveries, everyone else on the dashboard overview.
+export const homeFor = (u) => (u.isPlatform ? '/admin' : u.role === 'tenant_rider' ? `/dashboard/${u.tenantSlug}/deliveries` : `/dashboard/${u.tenantSlug}`);
 // Each audience has its own door: platform team -> /login, a business's staff -> /{slug}/login.
 export const loginFor = (u) => (u && !u.isPlatform && u.tenantSlug ? `/${u.tenantSlug}/login` : '/login');
 
@@ -33,8 +34,8 @@ export function AuthProvider({ children }) {
     })();
   }, [portal]);
 
-  const login = useCallback(async (email, password, tenantSlug) => {
-    const d = await api('/auth/login', { method: 'POST', body: { email, password, ...(tenantSlug ? { tenantSlug } : {}) } });
+  const login = useCallback(async (email, password, tenantSlug, door) => {
+    const d = await api('/auth/login', { method: 'POST', body: { email, password, ...(tenantSlug ? { tenantSlug } : {}), ...(door ? { door } : {}) } });
     setToken(d.accessToken); setUser(d.user);
     return d.user;
   }, []);

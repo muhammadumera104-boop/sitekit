@@ -1,10 +1,14 @@
 // Feature toggles: a feature can be switched off globally (platform-wide kill switch) or per store.
 // effective = globalEnabled && (store override ?? template default)
 const FEATURES = {
-  cart: { label: 'Add to cart', description: 'Visitors can add items to a cart and check out.', defaults: { store: true, restaurant: false } },
+  cart: { label: 'Add to cart', description: 'Visitors can add items to a cart and check out.', defaults: { store: true, restaurant: true } },
   discounts: { label: 'Discounts', description: 'Show sale prices / % off badges and "Add to cart with discount".', defaults: { store: true, restaurant: true } },
   onlineOrders: { label: 'Online orders', description: 'Checkout creates a real order the staff can manage (otherwise it is sent as a message).', defaults: { store: true, restaurant: true } },
-  search: { label: 'Product search', description: 'Search box and category filter on the catalog.', defaults: { store: true, restaurant: false } },
+  search: { label: 'Product search', description: 'Search box and category filter on the catalog.', defaults: { store: true, restaurant: true } },
+  locations: { label: 'Delivery locations', description: 'Visitors pick their city and area first; delivery fee and minimum order follow the area.', defaults: { store: true, restaurant: true } },
+  pickup: { label: 'Pickup orders', description: 'Let customers choose pickup instead of delivery at checkout.', defaults: { store: true, restaurant: true } },
+  orderTracking: { label: 'Order tracking', description: 'Customers can follow their order status with the order number and phone.', defaults: { store: true, restaurant: true } },
+  complaints: { label: 'Complaint form', description: 'A page where customers can submit a complaint.', defaults: { store: true, restaurant: true } },
   gallery: { label: 'Photo gallery', description: 'Gallery section and page.', defaults: { store: true, restaurant: true } },
   contactForm: { label: 'Contact form', description: 'Contact form that stores messages for the business.', defaults: { store: true, restaurant: true } },
   whatsappButton: { label: 'WhatsApp button', description: 'Floating WhatsApp chat button (needs a WhatsApp number).', defaults: { store: true, restaurant: true } },

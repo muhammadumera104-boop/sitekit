@@ -2,14 +2,14 @@
 // have already run: req.tenant / req.tenantId come from the logged-in user (never from the request body).
 const router = require('express').Router();
 const { z } = require('zod');
-const { Branch, Order, MenuItem, MenuCategory, User } = require('../models');
+const { Branch, ServiceArea, Order, MenuItem, MenuCategory, User } = require('../models');
 const { requirePerm } = require('../middleware/auth');
-const { R } = require('../config/permissions');
+const { R, can } = require('../config/permissions');
 const { FEATURES } = require('../config/features');
 const { HttpError, wrap, pageParams } = require('../utils/helpers');
 const { audit } = require('../services/audit');
 const { featuresFor, unitPrice } = require('../services/features');
-const { placeOrder, restoreStock } = require('../services/orders');
+const { placeOrder, restoreStock, pushStatus, STATUSES, TERMINAL } = require('../services/orders');
 
 // Cashiers and vendors with a branch only work inside that branch.
 const lockedBranch = (req) => ([R.TC, R.TV].includes(req.user.role) ? req.user.branchId || null : null);
@@ -57,7 +57,6 @@ router.delete('/branches/:id', branches, wrap(async (req, res) => {
 }));
 
 // ---------- Orders (transactions) ----------
-const STATUSES = ['new', 'confirmed', 'preparing', 'completed', 'cancelled'];
 function orderScope(req) {
   const own = lockedBranch(req);
   return { tenantId: req.tenantId, ...(own ? { $or: [{ branchId: own }, { branchId: null }] } : {}) };
@@ -70,7 +69,7 @@ router.get('/orders', requirePerm('orders.view'), wrap(async (req, res) => {
   if (STATUSES.includes(req.query.status)) q.status = req.query.status;
   if (['online', 'pos'].includes(req.query.source)) q.source = req.query.source;
   const [items, total, counts] = await Promise.all([
-    Order.find(q).sort({ createdAt: -1 }).skip(skip).limit(limit).populate('branchId', 'name').lean(),
+    Order.find(q).sort({ createdAt: -1 }).skip(skip).limit(limit).populate('branchId', 'name').populate('riderId', 'name phone').lean(),
     Order.countDocuments(q),
     Order.aggregate([{ $match: base }, { $group: { _id: '$status', n: { $sum: 1 } } }]),
   ]);
@@ -82,7 +81,7 @@ router.get('/orders/summary', requirePerm('orders.view'), wrap(async (req, res) 
   const base = orderScope(req);
   const [today, open] = await Promise.all([
     Order.aggregate([{ $match: { ...base, createdAt: { $gte: start }, status: { $ne: 'cancelled' } } }, { $group: { _id: '$source', n: { $sum: 1 }, revenue: { $sum: '$total' } } }]),
-    Order.countDocuments({ ...base, status: { $in: ['new', 'confirmed', 'preparing'] } }),
+    Order.countDocuments({ ...base, status: { $in: ['new', 'confirmed', 'preparing', 'ready', 'out_for_delivery'] } }),
   ]);
   const by = Object.fromEntries(today.map((t) => [t._id, t]));
   res.json({
@@ -93,20 +92,131 @@ router.get('/orders/summary', requirePerm('orders.view'), wrap(async (req, res) 
 
 const patchSchema = z.object({
   status: z.enum(STATUSES), paymentStatus: z.enum(['unpaid', 'paid']), paymentMethod: z.enum(['cash', 'card', 'online', 'cod']),
+  riderId: z.string().nullable(),
 }).partial();
+const markPaidIfCod = (order) => { if (order.paymentMethod === 'cod' && order.paymentStatus === 'unpaid') order.paymentStatus = 'paid'; };
+
 router.patch('/orders/:id', requirePerm('orders.manage'), wrap(async (req, res) => {
   const d = patchSchema.parse(req.body);
   const order = await Order.findOne({ _id: req.params.id, ...orderScope(req) });
   if (!order) throw new HttpError(404, 'Order not found');
   if (order.status === 'cancelled') throw new HttpError(409, 'A cancelled order cannot be changed');
-  if (d.status === 'cancelled') {
-    const f = await featuresFor(req.tenant);
-    if (f.inventory) await restoreStock(req.tenantId, order.items.map((i) => ({ itemId: i.itemId, qty: i.qty })));
+  // Finished orders stay finished; the one exception is voiding a completed POS sale (a cashier's mistake).
+  const voidingPosSale = order.source === 'pos' && order.status === 'completed' && d.status === 'cancelled';
+  if (d.status && d.status !== order.status && TERMINAL.includes(order.status) && !voidingPosSale) throw new HttpError(409, 'This order is already finished');
+
+  if (d.riderId !== undefined) {
+    if (!can(req.user.role, 'orders.assign')) throw new HttpError(403, 'You cannot assign riders');
+    if (d.riderId) {
+      if (order.orderType !== 'delivery') throw new HttpError(400, 'Only delivery orders need a rider');
+      if (!(await User.exists({ _id: d.riderId, tenantId: req.tenantId, role: R.TR, status: 'active' }))) throw new HttpError(400, 'Rider not found');
+    }
+    order.riderId = d.riderId || null;
   }
-  Object.assign(order, d);
+  if (d.status && d.status !== order.status) {
+    if (d.status === 'out_for_delivery' && order.orderType === 'delivery' && !order.riderId) throw new HttpError(400, 'Assign a rider before sending the order out');
+    if (d.status === 'cancelled') {
+      const f = await featuresFor(req.tenant);
+      if (f.inventory) await restoreStock(req.tenantId, order.items.map((i) => ({ itemId: i.itemId, qty: i.qty })));
+    }
+    pushStatus(order, d.status, req.user.name);
+    if (['delivered', 'completed'].includes(d.status)) markPaidIfCod(order);
+  }
+  if (d.paymentStatus) order.paymentStatus = d.paymentStatus;
+  if (d.paymentMethod) order.paymentMethod = d.paymentMethod;
   await order.save();
   await audit(req, 'order.update', { details: { number: order.number, ...d } });
   res.json({ order });
+}));
+
+// ---------- Delivery riders ----------
+router.get('/riders', requirePerm('orders.assign'), wrap(async (req, res) => {
+  res.json({ riders: await User.find({ tenantId: req.tenantId, role: R.TR, status: 'active' }).select('name phone').sort({ name: 1 }).lean() });
+}));
+
+// A rider only ever sees orders assigned to them.
+router.get('/deliveries', requirePerm('deliveries.use'), wrap(async (req, res) => {
+  const since = new Date(Date.now() - 24 * 3600 * 1000);
+  const items = await Order.find({
+    tenantId: req.tenantId, riderId: req.user._id,
+    $or: [{ status: { $in: ['confirmed', 'preparing', 'ready', 'out_for_delivery'] } }, { status: 'delivered', updatedAt: { $gte: since } }],
+  }).sort({ createdAt: 1 }).populate('branchId', 'name address phone').lean();
+  res.json({ items });
+}));
+router.patch('/deliveries/:id', requirePerm('deliveries.use'), wrap(async (req, res) => {
+  const { status } = z.object({ status: z.enum(['out_for_delivery', 'delivered']) }).parse(req.body);
+  const order = await Order.findOne({ _id: req.params.id, tenantId: req.tenantId, riderId: req.user._id });
+  if (!order) throw new HttpError(404, 'Delivery not found');
+  if (status === 'out_for_delivery' && !['confirmed', 'preparing', 'ready'].includes(order.status)) throw new HttpError(409, 'This order cannot be picked up now');
+  if (status === 'delivered' && order.status !== 'out_for_delivery') throw new HttpError(409, 'Pick the order up first');
+  pushStatus(order, status, `${req.user.name} (rider)`);
+  if (status === 'delivered') markPaidIfCod(order);
+  await order.save();
+  await audit(req, 'delivery.update', { details: { number: order.number, status } });
+  res.json({ order });
+}));
+
+// ---------- Delivery areas and ordering settings ----------
+router.get('/areas', wrap(async (req, res) => {
+  res.json({ areas: await ServiceArea.find({ tenantId: req.tenantId }).sort({ city: 1, name: 1 }).populate('branchId', 'name').lean() });
+}));
+const areaSchema = z.object({
+  city: z.string().trim().min(2).max(60), name: z.string().trim().min(1).max(100), branchId: z.string().nullable().optional(),
+  deliveryFee: z.coerce.number().min(0).max(100000).optional(), minOrder: z.coerce.number().min(0).max(1000000).optional(), isActive: z.boolean().optional(),
+});
+const areas = requirePerm('areas.manage');
+async function assertAreaBranch(req, branchId) {
+  if (branchId && !(await Branch.exists({ _id: branchId, tenantId: req.tenantId }))) throw new HttpError(400, 'Branch not found');
+}
+router.post('/areas', areas, wrap(async (req, res) => {
+  const d = areaSchema.parse(req.body);
+  await assertAreaBranch(req, d.branchId);
+  res.status(201).json({ area: await ServiceArea.create({ ...d, tenantId: req.tenantId }) });
+}));
+// Add many areas of one city at once.
+router.post('/areas/bulk', areas, wrap(async (req, res) => {
+  const d = z.object({
+    city: z.string().trim().min(2).max(60), names: z.array(z.string().trim().min(1).max(100)).min(1).max(500),
+    branchId: z.string().nullable().optional(), deliveryFee: z.coerce.number().min(0).optional(), minOrder: z.coerce.number().min(0).optional(),
+  }).parse(req.body);
+  await assertAreaBranch(req, d.branchId);
+  const have = new Set((await ServiceArea.find({ tenantId: req.tenantId, city: d.city }).select('name').lean()).map((a) => a.name.toLowerCase()));
+  const fresh = [...new Set(d.names)].filter((n) => !have.has(n.toLowerCase()));
+  if (fresh.length) {
+    await ServiceArea.insertMany(fresh.map((name) => ({ tenantId: req.tenantId, city: d.city, name, branchId: d.branchId || null, deliveryFee: d.deliveryFee || 0, minOrder: d.minOrder || 0 })));
+  }
+  await audit(req, 'areas.bulk', { details: { city: d.city, added: fresh.length } });
+  res.status(201).json({ added: fresh.length, skipped: d.names.length - fresh.length });
+}));
+router.put('/areas/:id', areas, wrap(async (req, res) => {
+  const d = areaSchema.partial().parse(req.body);
+  await assertAreaBranch(req, d.branchId);
+  const a = await ServiceArea.findOneAndUpdate({ _id: req.params.id, tenantId: req.tenantId }, { $set: d }, { returnDocument: 'after' });
+  if (!a) throw new HttpError(404, 'Area not found');
+  res.json({ area: a });
+}));
+router.delete('/areas/:id', areas, wrap(async (req, res) => {
+  if (!(await ServiceArea.findOneAndDelete({ _id: req.params.id, tenantId: req.tenantId }))) throw new HttpError(404, 'Area not found');
+  res.json({ ok: true });
+}));
+// Remove a whole city.
+router.delete('/areas', areas, wrap(async (req, res) => {
+  const city = String(req.query.city || '');
+  if (!city) throw new HttpError(400, 'city is required');
+  const r = await ServiceArea.deleteMany({ tenantId: req.tenantId, city });
+  res.json({ removed: r.deletedCount });
+}));
+
+router.get('/ordering', wrap(async (req, res) => res.json({ ordering: req.tenant.ordering || {} })));
+router.put('/ordering', areas, wrap(async (req, res) => {
+  const d = z.object({
+    taxPercent: z.coerce.number().min(0).max(50), taxInclusive: z.boolean(), taxLabel: z.string().trim().max(20),
+    minOrder: z.coerce.number().min(0), etaMinutes: z.coerce.number().int().min(5).max(240),
+  }).partial().parse(req.body);
+  for (const [k, v] of Object.entries(d)) req.tenant.set(`ordering.${k}`, v);
+  await req.tenant.save();
+  await audit(req, 'ordering.update', { details: d });
+  res.json({ ordering: req.tenant.ordering });
 }));
 
 // ---------- Point of sale ----------
