@@ -25,6 +25,7 @@ export default function AreasPage() {
       <div className="page-head"><h1>Delivery areas</h1><button className="btn primary" onClick={() => setAdd(true)}>＋ Add city / areas</button></div>
       <Alert>{error || err}</Alert><Alert type="success">{msg}</Alert>
       <Settings key={JSON.stringify(ordering)} ordering={ordering} slug={slug} onSaved={() => { setMsg('Ordering settings saved.'); reload(); }} />
+      <PaymentAccounts key={`pa-${JSON.stringify(ordering.paymentAccounts || [])}`} ordering={ordering} slug={slug} onSaved={() => { setMsg('Payment accounts saved.'); reload(); }} />
       {!cities.length && <div className="card center muted" style={{ marginTop: 16 }}>No delivery areas yet. Customers will not be asked for a location until you add some.</div>}
       {cities.map((city) => {
         const list = areas.filter((a) => a.city === city);
@@ -135,5 +136,36 @@ function EditModal({ area, slug, branches, onClose, onDone }) {
         <div className="row"><button className="btn primary">Save</button><button type="button" className="btn" onClick={onClose}>Cancel</button></div>
       </form>
     </Modal>
+  );
+}
+
+const PAY = [['jazzcash', 'JazzCash'], ['easypaisa', 'Easypaisa'], ['bank', 'Bank transfer']];
+
+// Accounts customers can pay into (they enter the transaction ID at checkout; you verify it on the Orders page).
+function PaymentAccounts({ ordering, slug, onSaved }) {
+  const existing = ordering.paymentAccounts || [];
+  const [rows, setRows] = useState(PAY.map(([method]) => existing.find((a) => a.method === method) || { method, accountName: '', accountNumber: '', instructions: '', enabled: false }));
+  const [err, setErr] = useState('');
+  const upd = (i, patch) => setRows(rows.map((r, k) => (k === i ? { ...r, ...patch } : r)));
+  async function save(e) {
+    e.preventDefault(); setErr('');
+    try { await api('/tenant/ordering', { method: 'PUT', tenant: slug, body: { paymentAccounts: rows.filter((r) => (r.accountNumber || '').trim()).map((r) => ({ ...r, enabled: !!r.enabled })) } }); onSaved(); } catch (x) { setErr(x.message); }
+  }
+  return (
+    <form className="card" style={{ marginTop: 16 }} onSubmit={save}>
+      <h3>Online payment accounts</h3>
+      <p className="muted" style={{ marginTop: 0 }}>Customers send the money to your account and enter the transaction ID at checkout. You confirm it on the Orders page (&ldquo;Payment received&rdquo;). Cash on delivery is always available.</p>
+      <Alert>{err}</Alert>
+      {rows.map((r, i) => (
+        <div className="pay-row" key={r.method}>
+          <label className="switch" title="Offer this method at checkout"><input type="checkbox" checked={!!r.enabled} onChange={(e) => upd(i, { enabled: e.target.checked })} /><span className="slider" /></label>
+          <strong style={{ minWidth: 110 }}>{PAY[i][1]}</strong>
+          <input className="select-sm" placeholder={r.method === 'bank' ? 'IBAN / account number' : 'Mobile account number'} value={r.accountNumber || ''} onChange={(e) => upd(i, { accountNumber: e.target.value })} aria-label={`${PAY[i][1]} number`} />
+          <input className="select-sm" placeholder="Account title" value={r.accountName || ''} onChange={(e) => upd(i, { accountName: e.target.value })} aria-label={`${PAY[i][1]} account title`} />
+          <input className="select-sm" style={{ flex: 2 }} placeholder="Instructions (optional)" value={r.instructions || ''} onChange={(e) => upd(i, { instructions: e.target.value })} aria-label={`${PAY[i][1]} instructions`} />
+        </div>
+      ))}
+      <button className="btn primary" style={{ marginTop: 10 }}>Save payment accounts</button>
+    </form>
   );
 }

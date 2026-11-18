@@ -63,6 +63,19 @@ Owner/Manager: Dashboard -> **Delivery areas** (cities, areas, fees, minimum ord
 **Staff login button** on every store site -> role chooser: Owner, Manager, Worker (cashier/vendor/editor), Delivery Rider. Each door only accepts its own roles; the rider lands on *My deliveries* and only sees orders assigned to them.
 Demo accounts per store: `owner@`, `manager@`, `editor@`, `cashier@`, `vendor@`, `rider@<slug>.test`. Online card payments are not built (cash on delivery / pay at pickup only).
 
+## More customer & staff features
+
+- **Customer accounts** (`/{slug}/account`): sign up with mobile + password, order history, saved addresses, one-tap **Reorder**. Guest checkout still works.
+- **Item options & add-ons** (sizes, spice level, extras) with required / optional / multiple rules; priced on the server.
+- **Promo codes** (percent or flat, minimum order, max discount, dates, usage limit) - Dashboard -> Promo codes.
+- **Reviews & ratings**: customers rate a delivered order from the tracking page (order number + phone); owners reply or hide. Average rating shows on the site.
+- **Manual online payment**: JazzCash / Easypaisa / bank accounts shown at checkout, the customer enters the transaction ID, staff press "Payment received" on the Orders page. (A card gateway needs merchant keys - not included.)
+- **GPS**: customers can attach their location; riders get a one-tap map; riders share **live location** and customers see it on a map while the order is on its way.
+- **Alerts & printing**: new-order chime + browser notification + nav badge (Orders -> "Enable alerts"); print receipt and kitchen ticket.
+- **Email**: order emails go to the customer (if an email was given) and the store. Set `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `MAIL_FROM` in `backend/.env` (or Vercel env) - without SMTP they are only printed to the API console.
+- **Deployment**: `backend/vercel.json` runs the API as a serverless function and a daily cron (`/api/cron/purge`, protected by `CRON_SECRET`) that removes tenants deleted more than 30 days ago.
+- Rate limits are configurable: `LOGIN_RATE_LIMIT`, `ORDER_RATE_LIMIT` (defaults 30 / 20 per window).
+
 ## Commerce
 
 - **Online checkout:** `POST /api/public/tenants/:slug/orders` (cash on delivery). Prices and stock are always computed on the server.

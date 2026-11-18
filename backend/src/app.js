@@ -23,6 +23,8 @@ app.use('/uploads', express.static(uploadDir, { maxAge: '7d' }));
 app.get('/api/health', (_req, res) => res.json({ ok: true }));
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/public', require('./routes/public'));
+app.use('/api/customer', require('./routes/customer'));
+app.use('/api/cron', require('./routes/cron'));
 app.use('/api/admin', require('./routes/admin'));
 app.use('/api/tenant', require('./routes/tenant'));
 app.use(notFound);

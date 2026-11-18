@@ -10,7 +10,7 @@ const { HttpError, wrap, sha256, randomToken } = require('../utils/helpers');
 const { audit } = require('../services/audit');
 const { sendMail } = require('../services/email');
 
-const loginLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 30, standardHeaders: true, legacyHeaders: false, message: { message: 'Too many attempts, try again later' } });
+const loginLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: Number(process.env.LOGIN_RATE_LIMIT || 30), standardHeaders: true, legacyHeaders: false, message: { message: 'Too many attempts, try again later' } });
 const MAX_FAILS = 5;
 const LOCK_MIN = 15;
 const REFRESH_DAYS = 7;

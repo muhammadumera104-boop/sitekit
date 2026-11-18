@@ -2,6 +2,9 @@ export const money = (n) => `Rs. ${Number(n || 0).toLocaleString()}`;
 export const fmtDate = (d) => (d ? new Date(d).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }) : '—');
 
 export const FONTS = [
+  { label: 'Outfit (modern, recommended)', value: 'var(--font-outfit), system-ui, sans-serif' },
+  { label: 'Plus Jakarta (clean)', value: 'var(--font-jakarta), system-ui, sans-serif' },
+  { label: 'Playfair (elegant serif)', value: 'var(--font-playfair), Georgia, serif' },
   { label: 'Serif (Georgia)', value: 'Georgia, serif' },
   { label: 'Modern (Trebuchet)', value: 'Trebuchet MS, sans-serif' },
   { label: 'Clean (Verdana)', value: 'Verdana, sans-serif' },

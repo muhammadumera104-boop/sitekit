@@ -51,6 +51,24 @@ const EXTRA_MENU = {
   ],
 };
 
+// Demo item options (sizes / add-ons) so the options popup has something to show.
+const OPTIONS = {
+  kababjees: {
+    "Chick N' Crunch Burger": [
+      { name: 'Make it a meal', required: false, multiple: false, options: [{ name: 'Fries + regular drink', price: 280 }, { name: 'Fries only', price: 150 }] },
+      { name: 'Add-ons', required: false, multiple: true, max: 3, options: [{ name: 'Extra cheese slice', price: 60 }, { name: 'Extra Al-Baik sauce', price: 40 }, { name: 'Jalapenos', price: 30 }] },
+    ],
+    'Soft Drink': [{ name: 'Size', required: true, multiple: false, options: [{ name: 'Regular (345 ml)', price: 0 }, { name: 'Large (500 ml)', price: 50 }] }],
+    'Zingo Burger': [{ name: 'Spice level', required: true, multiple: false, options: [{ name: 'Mild', price: 0 }, { name: 'Medium', price: 0 }, { name: 'Hot', price: 0 }] }],
+  },
+  foodin: { 'Classic Smash': [{ name: 'Patty', required: true, multiple: false, options: [{ name: 'Double', price: 0 }, { name: 'Triple', price: 220 }] }] },
+};
+const PROMOS = { kababjees: ['WELCOME10', 10], kravemart: ['FRESH10', 10], foodin: ['FOODIN10', 10], unitedking: ['SWEET10', 10] };
+const PAY_DEMO = [
+  { method: 'jazzcash', accountName: 'Demo Account (replace in Dashboard)', accountNumber: '0300-0000000', instructions: 'Send the total amount, then enter the transaction ID at checkout.', enabled: true },
+  { method: 'easypaisa', accountName: 'Demo Account (replace in Dashboard)', accountNumber: '0300-0000001', instructions: 'Send the total amount, then enter the transaction ID at checkout.', enabled: true },
+];
+
 async function ensureUser(tenant, { name, email, role, branchId, phone }, hash) {
   const exists = await models.User.findOne({ email });
   if (exists) { if (String(exists.tenantId) === String(tenant._id) && branchId && !exists.branchId) { exists.branchId = branchId; await exists.save(); } return false; }
@@ -72,6 +90,26 @@ async function topUp(tenant, hash) {
   if (await ensureUser(tenant, { name: `${tenant.name} Cashier`, email: `cashier@${slug}.test`, role: R.TC, branchId: first }, hash)) made.push('cashier');
   if (await ensureUser(tenant, { name: `${tenant.name} Vendor`, email: `vendor@${slug}.test`, role: R.TV, branchId: first }, hash)) made.push('vendor');
   if (await ensureUser(tenant, { name: `${tenant.name} Rider`, email: `rider@${slug}.test`, role: R.TR, branchId: first, phone: '03001234567' }, hash)) made.push('rider');
+
+  // Modern fonts for stores that still have the old defaults.
+  const oldHeading = ['Georgia, serif', 'Trebuchet MS, sans-serif', 'Verdana, sans-serif'];
+  if (oldHeading.includes(tenant.theme?.fontHeading)) {
+    await models.Tenant.updateOne({ _id: tenant._id }, { $set: { 'theme.fontHeading': 'var(--font-outfit), system-ui, sans-serif', 'theme.fontBody': 'var(--font-jakarta), system-ui, sans-serif' } });
+    made.push('modern fonts');
+  }
+
+  for (const [name, groups] of Object.entries(OPTIONS[slug] || {})) {
+    const it = await models.MenuItem.findOne({ tenantId: tenant._id, name });
+    if (it && !it.optionGroups?.length) { it.optionGroups = groups; await it.save(); made.push(`options ${name}`); }
+  }
+  if (PROMOS[slug] && !(await models.Promo.exists({ tenantId: tenant._id, code: PROMOS[slug][0] }))) {
+    await models.Promo.create({ tenantId: tenant._id, code: PROMOS[slug][0], description: `${PROMOS[slug][1]}% off your order`, type: 'percent', value: PROMOS[slug][1], minOrder: 500, maxDiscount: 300 });
+    made.push(`promo ${PROMOS[slug][0]}`);
+  }
+  if (!tenant.ordering?.paymentAccounts?.length) {
+    await models.Tenant.updateOne({ _id: tenant._id }, { $set: { 'ordering.paymentAccounts': PAY_DEMO } });
+    made.push('payment accounts');
+  }
 
   // Ordering settings (tax, delivery ETA) and delivery areas.
   if (!tenant.ordering?.taxPercent && ORDERING[slug]) { await models.Tenant.updateOne({ _id: tenant._id }, { $set: Object.fromEntries(Object.entries(ORDERING[slug]).map(([k, v]) => [`ordering.${k}`, v])) }); made.push('ordering settings'); }

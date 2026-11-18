@@ -2,7 +2,7 @@ const router = require('express').Router();
 const bcrypt = require('bcryptjs');
 const multer = require('multer');
 const { z } = require('zod');
-const { Tenant, User, Branch, MenuCategory, MenuItem, Page, Media, Message, AuditLog, Visit, Session } = require('../models');
+const { Tenant, User, Branch, MenuCategory, MenuItem, Page, Media, Message, AuditLog, Visit, Session, Promo, Review, Customer, Order } = require('../models');
 const { authenticate, requirePerm, tenantContext } = require('../middleware/auth');
 const { can, R, TENANT_ROLES, PLATFORM_ROLES, permissionsFor } = require('../config/permissions');
 const { HttpError, wrap, slugify, pageParams, sha256, randomToken } = require('../utils/helpers');
@@ -127,6 +127,11 @@ const itemSchema = z.object({
   discountPercent: z.coerce.number().min(0, 'Discount must be 0 or more').max(90, 'Discount can be at most 90%').optional(),
   stock: z.number().int('Stock must be a whole number').min(0, 'Stock cannot be negative').nullable().optional(), // null = not tracked
   branchId: z.string().nullable().optional(), // null = sold at all branches
+  optionGroups: z.array(z.object({
+    _id: z.string().optional(), name: z.string().trim().min(1, 'Option group name is required').max(60), required: z.boolean().optional(), multiple: z.boolean().optional(),
+    min: z.coerce.number().int().min(0).max(30).optional(), max: z.coerce.number().int().min(0).max(30).optional(),
+    options: z.array(z.object({ _id: z.string().optional(), name: z.string().trim().min(1, 'Option name is required').max(60), price: z.coerce.number().min(0).max(1000000).optional() })).min(1, 'Add at least one option').max(40),
+  })).max(10).optional(), // sizes, add-ons...
 });
 router.post('/menu/items', products, wrap(async (req, res) => {
   const d = itemSchema.parse(req.body);
@@ -318,6 +323,63 @@ router.get('/analytics', requirePerm('analytics.view'), wrap(async (req, res) =>
     Message.countDocuments({ tenantId: req.tenantId, status: 'new' }),
   ]);
   res.json({ visits: total, perDay: perDay.map((d) => ({ day: d._id, visits: d.n })), popular: popular.map((p) => ({ path: p._id, visits: p.n })), messages, unread });
+}));
+
+// ---------- Promo codes ----------
+const promoSchema = z.object({
+  code: z.string().trim().min(3, 'Code must be at least 3 characters').max(30).regex(/^[A-Za-z0-9_-]+$/, 'Use letters, numbers, - or _'), description: z.string().trim().max(120).optional(),
+  type: z.enum(['percent', 'flat']), value: z.coerce.number().min(1, 'Value must be at least 1'), minOrder: z.coerce.number().min(0).optional(), maxDiscount: z.coerce.number().min(0).optional(),
+  validFrom: z.string().nullable().optional(), validTo: z.string().nullable().optional(), usageLimit: z.coerce.number().int().min(0).optional(), isActive: z.boolean().optional(),
+}).refine((v) => v.type !== 'percent' || v.value <= 100, { message: 'A percent discount cannot be over 100', path: ['value'] });
+const promosPerm = requirePerm('promos.manage');
+const dateOrNull = (v) => (v ? new Date(v) : null);
+router.get('/promos', promosPerm, wrap(async (req, res) => res.json({ promos: await Promo.find({ tenantId: req.tenantId }).sort({ createdAt: -1 }).lean() })));
+router.post('/promos', promosPerm, wrap(async (req, res) => {
+  const d = promoSchema.parse(req.body);
+  const promo = await Promo.create({ ...d, validFrom: dateOrNull(d.validFrom), validTo: dateOrNull(d.validTo), tenantId: req.tenantId });
+  await audit(req, 'promo.create', { details: { code: promo.code } });
+  res.status(201).json({ promo });
+}));
+router.put('/promos/:id', promosPerm, wrap(async (req, res) => {
+  const d = promoSchema.partial().parse(req.body);
+  const set = { ...d };
+  if ('validFrom' in d) set.validFrom = dateOrNull(d.validFrom);
+  if ('validTo' in d) set.validTo = dateOrNull(d.validTo);
+  const promo = await Promo.findOneAndUpdate({ _id: req.params.id, tenantId: req.tenantId }, { $set: set }, { returnDocument: 'after' });
+  if (!promo) throw new HttpError(404, 'Promo not found');
+  res.json({ promo });
+}));
+router.delete('/promos/:id', promosPerm, wrap(async (req, res) => {
+  if (!(await Promo.findOneAndDelete({ _id: req.params.id, tenantId: req.tenantId }))) throw new HttpError(404, 'Promo not found');
+  res.json({ ok: true });
+}));
+
+// ---------- Reviews (moderate + reply) ----------
+const reviewsPerm = requirePerm('reviews.manage');
+router.get('/reviews', reviewsPerm, wrap(async (req, res) => {
+  const [items, agg] = await Promise.all([
+    Review.find({ tenantId: req.tenantId }).sort({ createdAt: -1 }).limit(200).lean(),
+    Review.aggregate([{ $match: { tenantId: req.tenantId } }, { $group: { _id: null, avg: { $avg: '$rating' }, n: { $sum: 1 } } }]),
+  ]);
+  res.json({ items, avg: agg[0] ? Math.round(agg[0].avg * 10) / 10 : 0, count: agg[0]?.n || 0 });
+}));
+router.patch('/reviews/:id', reviewsPerm, wrap(async (req, res) => {
+  const d = z.object({ isPublished: z.boolean(), reply: z.string().trim().max(500) }).partial().parse(req.body);
+  const r = await Review.findOneAndUpdate({ _id: req.params.id, tenantId: req.tenantId }, { $set: d }, { returnDocument: 'after' });
+  if (!r) throw new HttpError(404, 'Review not found');
+  res.json({ review: r });
+}));
+
+// ---------- Customers (accounts that signed up on the website) ----------
+router.get('/customers', requirePerm('customers.view'), wrap(async (req, res) => {
+  const { page, limit, skip } = pageParams(req.query);
+  const [items, total, counts] = await Promise.all([
+    Customer.find({ tenantId: req.tenantId }).sort({ createdAt: -1 }).skip(skip).limit(limit).select('name phone email createdAt lastLogin addresses').lean(),
+    Customer.countDocuments({ tenantId: req.tenantId }),
+    Order.aggregate([{ $match: { tenantId: req.tenantId, customerId: { $ne: null }, status: { $ne: 'cancelled' } } }, { $group: { _id: '$customerId', orders: { $sum: 1 }, spent: { $sum: '$total' } } }]),
+  ]);
+  const by = new Map(counts.map((c) => [String(c._id), c]));
+  res.json({ items: items.map((c) => ({ ...c, addresses: c.addresses?.length || 0, orders: by.get(String(c._id))?.orders || 0, spent: by.get(String(c._id))?.spent || 0 })), total, page, pages: Math.ceil(total / limit) });
 }));
 
 // Branches, orders, POS and inventory.

@@ -1,5 +1,5 @@
 // Builds the data a template needs to render a tenant website.
-const { Page, MenuCategory, MenuItem, Media, Template, ServiceArea, Branch } = require('../models');
+const { Page, MenuCategory, MenuItem, Media, Template, ServiceArea, Branch, Review } = require('../models');
 const { featuresFor, unitPrice } = require('./features');
 
 const publicTenant = (t) => ({
@@ -17,6 +17,10 @@ const publicItem = (i, f) => {
     discountPercent: pct, salePrice: unitPrice(i.price, pct, f.discounts),
     isAvailable: i.isAvailable && (!tracked || i.stock > 0),
     lowStock: tracked && i.stock > 0 && i.stock <= 5 ? i.stock : null,
+    optionGroups: (i.optionGroups || []).map((g) => ({
+      id: String(g._id), name: g.name, required: g.required, multiple: g.multiple, min: g.min, max: g.max,
+      options: g.options.map((o) => ({ id: String(o._id), name: o.name, price: o.price || 0 })),
+    })),
   };
 };
 
@@ -27,7 +31,7 @@ exports.buildSite = async (tenant, { preview = false } = {}) => {
   const tenantId = tenant._id;
   const pageFilter = { tenantId, ...(preview ? {} : { isPublished: true }) };
   const features = await featuresFor(tenant);
-  const [template, pages, gallery, categories, items, areaDocs, branchDocs] = await Promise.all([
+  const [template, pages, gallery, categories, items, areaDocs, branchDocs, reviewAgg, reviewDocs] = await Promise.all([
     Template.findOne({ key: tenant.templateKey }).lean(),
     Page.find(pageFilter).sort({ order: 1 }).lean(),
     features.gallery ? Media.find({ tenantId, isGallery: true }).sort({ createdAt: -1 }).limit(60).lean() : [],
@@ -35,6 +39,8 @@ exports.buildSite = async (tenant, { preview = false } = {}) => {
     MenuItem.find({ tenantId }).sort({ order: 1, createdAt: 1 }).lean(),
     ServiceArea.find({ tenantId, isActive: true }).sort({ city: 1, name: 1 }).lean(),
     Branch.find({ tenantId, isActive: true }).sort({ name: 1 }).select('name address phone').lean(),
+    features.reviews ? Review.aggregate([{ $match: { tenantId, isPublished: true } }, { $group: { _id: null, avg: { $avg: '$rating' }, n: { $sum: 1 } } }]) : [],
+    features.reviews ? Review.find({ tenantId, isPublished: true, comment: { $nin: [null, ''] } }).sort({ createdAt: -1 }).limit(6).select('name rating comment reply createdAt').lean() : [],
   ]);
   const cities = new Map();
   for (const a of areaDocs) {
@@ -51,7 +57,9 @@ exports.buildSite = async (tenant, { preview = false } = {}) => {
     ordering: {
       taxPercent: tenant.ordering?.taxPercent || 0, taxInclusive: tenant.ordering?.taxInclusive !== false, taxLabel: tenant.ordering?.taxLabel || 'Tax',
       minOrder: tenant.ordering?.minOrder || 0, etaMinutes: tenant.ordering?.etaMinutes || 45, pickup: !!features.pickup,
+      paymentAccounts: features.onlinePayments ? (tenant.ordering?.paymentAccounts || []).filter((a) => a.enabled !== false && a.accountNumber).map((a) => ({ method: a.method, accountName: a.accountName, accountNumber: a.accountNumber, instructions: a.instructions })) : [],
     },
+    reviews: reviewAgg[0] ? { avg: Math.round(reviewAgg[0].avg * 10) / 10, count: reviewAgg[0].n, items: reviewDocs.map((r) => ({ name: r.name, rating: r.rating, comment: r.comment, reply: r.reply })) } : null,
     locations: features.locations ? [...cities].map(([city, areas]) => ({ city, areas })) : [],
     branches: branchDocs.map((b) => ({ id: b._id, name: b.name, address: b.address, phone: b.phone })),
     template: template && { key: template.key, name: template.name, dataSchema: template.dataSchema, supportedSections: template.supportedSections },

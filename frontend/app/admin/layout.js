@@ -1,5 +1,6 @@
 'use client';
 import { Protected, Shell } from '@/components/Shell';
+import { useTabBrand } from '@/lib/useTabBrand';
 
 const nav = [
   { href: '/admin', label: 'Dashboard', icon: '▦', exact: true },
@@ -13,6 +14,7 @@ const nav = [
 ];
 
 export default function AdminLayout({ children }) {
+  useTabBrand('SiteForge Admin', '/icon.svg');
   return (
     <Protected area="platform">
       <Shell title="Admin Portal" brand="SiteForge Admin" nav={nav}>{children}</Shell>

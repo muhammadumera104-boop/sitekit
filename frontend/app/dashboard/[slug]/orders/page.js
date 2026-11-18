@@ -1,7 +1,9 @@
 'use client';
-import { Fragment, useState } from 'react';
+import { Fragment, useEffect, useState } from 'react';
 import { api, qs } from '@/lib/api';
 import { fmtDate, money } from '@/lib/util';
+import { printOrder } from '@/lib/print';
+import { alertsOn, disableAlerts, enableAlerts } from '@/lib/useOrderAlerts';
 import { useAuth } from '@/lib/auth';
 import { useTenant } from '@/components/TenantCtx';
 import { Protected } from '@/components/Shell';
@@ -20,7 +22,7 @@ function nextStep(o) {
 }
 
 export default function OrdersPage() {
-  const { slug } = useTenant();
+  const { slug, tenant } = useTenant();
   const { user } = useAuth();
   const can = (p) => user.permissions.includes(p);
   const [status, setStatus] = useState('all');
@@ -28,7 +30,10 @@ export default function OrdersPage() {
   const [page, setPage] = useState(1);
   const [open, setOpen] = useState(null);
   const [err, setErr] = useState('');
+  const [bell, setBell] = useState(false);
+  useEffect(() => setBell(alertsOn()), []);
   const { data, error, loading, reload } = useLoad(() => api(`/tenant/orders${qs({ status: status === 'all' ? '' : status, source, page })}`, { tenant: slug }), [slug, status, source, page]);
+  useEffect(() => { const t = setInterval(reload, 15000); return () => clearInterval(t); }, [reload]); // new orders appear by themselves
   const riders = useLoad(() => (can('orders.assign') ? api('/tenant/riders', { tenant: slug }) : Promise.resolve({ riders: [] })), [slug]);
 
   async function patch(o, body) {
@@ -45,6 +50,7 @@ export default function OrdersPage() {
           <select value={source} onChange={(e) => { setSource(e.target.value); setPage(1); }} aria-label="Order source" className="select-sm">
             <option value="">All sources</option><option value="online">Online</option><option value="pos">Point of sale</option>
           </select>
+          <button className={`btn ${bell ? 'primary' : ''}`} onClick={async () => { if (bell) { disableAlerts(); setBell(false); } else { await enableAlerts(); setBell(true); } }} title="Play a sound and show a notification when a new order arrives">{bell ? '🔔 Alerts on' : '🔕 Enable alerts'}</button>
           <button className="btn" onClick={reload}>Refresh</button>
         </div>
       </div>
@@ -66,18 +72,19 @@ export default function OrdersPage() {
                     <td className="muted">{fmtDate(o.createdAt)}</td>
                     <td>{o.customer?.name || <span className="muted">Walk-in</span>}<div className="muted" style={{ fontSize: 12 }}>{o.customer?.phone}{o.area ? ` · ${o.area}` : ''}</div></td>
                     <td><strong>{money(o.total)}</strong>{o.discount > 0 && <div className="muted" style={{ fontSize: 12 }}>saved {money(o.discount)}</div>}</td>
-                    <td><Badge>{o.paymentStatus}</Badge><div className="muted" style={{ fontSize: 12 }}>{o.paymentMethod}</div></td>
+                    <td><Badge>{o.paymentStatus === 'pending' ? 'verify' : o.paymentStatus}</Badge><div className="muted" style={{ fontSize: 12 }}>{o.paymentMethod}{o.paymentRef ? ` · ${o.paymentRef}` : ''}</div></td>
                     <td><Badge>{label(o.status)}</Badge>{o.riderId && <div className="muted" style={{ fontSize: 12 }}>🛵 {o.riderId.name}</div>}</td>
                     <td><div className="row" style={{ flexWrap: 'nowrap' }}>
                       <button className="btn sm" onClick={() => setOpen(open === o._id ? null : o._id)}>{open === o._id ? 'Hide' : 'Details'}</button>
                       {can('orders.manage') && nx && <button className="btn sm primary" onClick={() => patch(o, { status: nx[0] })}>{nx[1]}</button>}
+                      {can('orders.manage') && o.paymentStatus === 'pending' && o.status !== 'cancelled' && <><button className="btn sm primary" onClick={() => patch(o, { paymentStatus: 'paid' })}>✓ Payment received</button><button className="btn sm danger" onClick={() => confirm(`Reject the payment for #${o.number}?`) && patch(o, { paymentStatus: 'failed' })}>Reject</button></>}
                       {can('orders.manage') && o.paymentStatus === 'unpaid' && o.status !== 'cancelled' && <button className="btn sm" onClick={() => patch(o, { paymentStatus: 'paid' })}>Mark paid</button>}
                       {can('orders.manage') && !['delivered', 'completed', 'cancelled'].includes(o.status) && <button className="btn sm danger" onClick={() => confirm(`Cancel order #${o.number}? Stock will be returned.`) && patch(o, { status: 'cancelled' })}>Cancel</button>}
                     </div></td>
                   </tr>
                   {open === o._id && (
                     <tr><td colSpan={7} style={{ background: 'color-mix(in srgb, var(--line) 35%, transparent)' }}>
-                      {o.items.map((i, k) => <div key={k}><div className="row between"><span>{i.qty} × {i.name}{i.discountPercent > 0 && <span className="muted"> ({i.discountPercent}% off)</span>}</span><span>{money(i.unitPrice * i.qty)}</span></div>{i.note && <div className="muted" style={{ fontSize: 12, marginLeft: 14 }}>“{i.note}”</div>}</div>)}
+                      {o.items.map((i, k) => <div key={k}><div className="row between"><span>{i.qty} × {i.name}{i.options?.length > 0 && <span className="muted"> ({i.options.map((x) => x.name).join(', ')})</span>}{i.discountPercent > 0 && <span className="muted"> ({i.discountPercent}% off)</span>}</span><span>{money(i.unitPrice * i.qty)}</span></div>{i.note && <div className="muted" style={{ fontSize: 12, marginLeft: 14 }}>“{i.note}”</div>}</div>)}
                       {(o.tax > 0 || o.deliveryFee > 0) && <div className="muted" style={{ fontSize: 13, marginTop: 6 }}>{o.tax > 0 && `Tax ${money(o.tax)} `}{o.deliveryFee > 0 && `· Delivery fee ${money(o.deliveryFee)}`}</div>}
                       {o.customer?.address && <p style={{ margin: '8px 0 0' }}><strong>Deliver to:</strong> {o.customer.title} {o.customer.name} — {o.customer.address}{o.customer.landmark ? ` (near ${o.customer.landmark})` : ''}{o.area ? `, ${o.area}${o.city ? `, ${o.city}` : ''}` : ''}</p>}
                       {o.customer?.altPhone && <p style={{ margin: '4px 0 0' }}><strong>Alt. phone:</strong> {o.customer.altPhone}</p>}
@@ -94,6 +101,10 @@ export default function OrdersPage() {
                           {!riders.data?.riders.length && <span className="muted">No riders yet — add one in Team.</span>}
                         </div>
                       )}
+                      {o.paymentRef && <p style={{ margin: '4px 0 0' }}><strong>Payment:</strong> {o.paymentMethod} · transaction {o.paymentRef}{o.paymentSender ? ` · from ${o.paymentSender}` : ''}</p>}
+                      {o.customer?.location?.lat != null && <p style={{ margin: '4px 0 0' }}><strong>GPS pin:</strong> <a href={`https://www.google.com/maps/search/?api=1&query=${o.customer.location.lat},${o.customer.location.lng}`} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'underline' }}>open on map</a></p>}
+                      {o.promoCode && <p style={{ margin: '4px 0 0' }}><strong>Promo:</strong> {o.promoCode} (− {money(o.promoDiscount)})</p>}
+                      <div className="row" style={{ marginTop: 10 }}><button className="btn sm" onClick={() => printOrder(o, { name: tenant.name })}>🖨️ Print receipt</button><button className="btn sm" onClick={() => printOrder(o, { name: tenant.name }, { kitchen: true })}>🍳 Kitchen ticket</button></div>
                       {o.history?.length > 0 && <div className="muted" style={{ fontSize: 12, marginTop: 10 }}>{o.history.map((h) => `${label(h.status)} ${fmtDate(h.at)}${h.by ? ` (${h.by})` : ''}`).join('  →  ')}</div>}
                     </td></tr>
                   )}

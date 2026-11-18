@@ -2,6 +2,49 @@
 import { useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { fmtDate, money } from '@/lib/util';
+import { Stars } from './StoreCatalog';
+
+const ago = (d) => { const s = Math.max(0, Math.round((Date.now() - new Date(d)) / 1000)); return s < 60 ? `${s}s ago` : `${Math.round(s / 60)} min ago`; };
+const PAY = { cod: 'cash on delivery', jazzcash: 'JazzCash', easypaisa: 'Easypaisa', bank: 'bank transfer' };
+
+// Live map (OpenStreetMap, no API key): the rider's position, and the delivery point when the customer shared it.
+function RiderMap({ at, dest }) {
+  const pad = 0.012;
+  const pts = dest ? [at, dest] : [at];
+  const lat = pts.map((p) => p.lat); const lng = pts.map((p) => p.lng);
+  const bbox = `${Math.min(...lng) - pad},${Math.min(...lat) - pad},${Math.max(...lng) + pad},${Math.max(...lat) + pad}`;
+  return (
+    <div className="map-box">
+      <iframe title="Rider location" loading="lazy" src={`https://www.openstreetmap.org/export/embed.html?bbox=${bbox}&layer=mapnik&marker=${at.lat},${at.lng}`} />
+      <div className="muted sm">Rider updated {ago(at.at)} · <a href={`https://www.openstreetmap.org/?mlat=${at.lat}&mlon=${at.lng}#map=16/${at.lat}/${at.lng}`} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'underline' }}>Open bigger map</a></div>
+    </div>
+  );
+}
+
+function ReviewForm({ slug, number, phone, onDone }) {
+  const [rating, setRating] = useState(0);
+  const [comment, setComment] = useState('');
+  const [err, setErr] = useState('');
+  const [busy, setBusy] = useState(false);
+  async function send(e) {
+    e.preventDefault(); setErr(''); setBusy(true);
+    try {
+      const r = await fetch(`/api/public/tenants/${slug}/reviews`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ number, phone, rating, comment }) });
+      const d = await r.json();
+      if (!r.ok) return setErr(d.errors ? Object.values(d.errors)[0] : d.message);
+      onDone(d.message);
+    } catch { setErr('Could not send your review. Try again.'); } finally { setBusy(false); }
+  }
+  return (
+    <form className="review-form" onSubmit={send}>
+      <h4 style={{ margin: '0 0 6px' }}>How was your order?</h4>
+      <div className="star-pick" role="radiogroup" aria-label="Rating">{[1, 2, 3, 4, 5].map((n) => <button type="button" key={n} className={n <= rating ? 'on' : ''} onClick={() => setRating(n)} aria-label={`${n} star${n > 1 ? 's' : ''}`}>★</button>)}</div>
+      <textarea rows={3} maxLength={1000} placeholder="Tell others what you liked (optional)" value={comment} onChange={(e) => setComment(e.target.value)} />
+      {err && <div className="err">{err}</div>}
+      <button className="cta" disabled={busy || !rating} style={{ marginTop: 8 }}>{busy ? 'Sending…' : 'Submit review'}</button>
+    </form>
+  );
+}
 
 const STEPS_DELIVERY = [['new', 'Order placed'], ['confirmed', 'Confirmed'], ['preparing', 'Being prepared'], ['ready', 'Ready'], ['out_for_delivery', 'Out for delivery'], ['delivered', 'Delivered']];
 const STEPS_PICKUP = [['new', 'Order placed'], ['confirmed', 'Confirmed'], ['preparing', 'Being prepared'], ['ready', 'Ready for pickup'], ['completed', 'Picked up']];
@@ -14,6 +57,7 @@ export default function TrackOrder({ slug, preview }) {
   const [order, setOrder] = useState(null);
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
+  const [thanks, setThanks] = useState('');
   const timer = useRef();
 
   async function lookup(e, silent) {
@@ -58,13 +102,16 @@ export default function TrackOrder({ slug, preview }) {
               ))}
             </ol>
           )}
+          {order.riderLocation && <RiderMap at={order.riderLocation} dest={order.destination} />}
           {order.rider && <div className="alert info" style={{ marginTop: 14 }}>🛵 {order.rider.name} is on the way{order.rider.phone ? <> · <a href={`tel:${order.rider.phone}`}>{order.rider.phone}</a></> : null}</div>}
           {!['delivered', 'completed', 'cancelled'].includes(order.status) && order.orderType === 'delivery' && <p className="muted sm">Estimated delivery: about {order.etaMinutes} minutes from when you ordered.</p>}
           <div className="co-line head"><span>Items</span><span /></div>
-          {order.items.map((i, k) => <div className="co-line" key={k}><span>{i.qty} × {i.name}</span><span>{money(i.unitPrice * i.qty)}</span></div>)}
+          {order.items.map((i, k) => <div className="co-line" key={k}><span>{i.qty} × {i.name}{i.options?.length > 0 && <small> ({i.options.join(', ')})</small>}</span><span>{money(i.unitPrice * i.qty)}</span></div>)}
+          {order.promoDiscount > 0 && <div className="co-line"><span>Promo {order.promoCode}</span><span>− {money(order.promoDiscount)}</span></div>}
           {order.tax > 0 && <div className="co-line"><span>Tax</span><span>{money(order.tax)}</span></div>}
           {order.deliveryFee > 0 && <div className="co-line"><span>Delivery fee</span><span>{money(order.deliveryFee)}</span></div>}
-          <div className="co-line total"><span>Total ({order.paymentMethod === 'cod' ? 'cash on delivery' : order.paymentMethod}, {order.paymentStatus})</span><span>{money(order.total)}</span></div>
+          {thanks ? <div className="alert success" style={{ marginTop: 14 }}>{thanks}</div> : order.canReview && <ReviewForm slug={slug} number={order.number} phone={phone} onDone={(m) => { setThanks(m); setOrder({ ...order, canReview: false }); }} />}
+          <div className="co-line total"><span>Total ({PAY[order.paymentMethod] || order.paymentMethod}, {order.paymentStatus === 'pending' ? 'payment being verified' : order.paymentStatus})</span><span>{money(order.total)}</span></div>
         </div>
       )}
     </div>

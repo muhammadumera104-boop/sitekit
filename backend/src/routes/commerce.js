@@ -2,7 +2,8 @@
 // have already run: req.tenant / req.tenantId come from the logged-in user (never from the request body).
 const router = require('express').Router();
 const { z } = require('zod');
-const { Branch, ServiceArea, Order, MenuItem, MenuCategory, User } = require('../models');
+const { Branch, ServiceArea, Order, MenuItem, MenuCategory, User, Promo } = require('../models');
+const { notifyOrder } = require('../services/notify');
 const { requirePerm } = require('../middleware/auth');
 const { R, can } = require('../config/permissions');
 const { FEATURES } = require('../config/features');
@@ -79,19 +80,22 @@ router.get('/orders', requirePerm('orders.view'), wrap(async (req, res) => {
 router.get('/orders/summary', requirePerm('orders.view'), wrap(async (req, res) => {
   const start = new Date(); start.setHours(0, 0, 0, 0);
   const base = orderScope(req);
-  const [today, open] = await Promise.all([
+  const [today, open, newOrders, pendingPayments, latestNew] = await Promise.all([
     Order.aggregate([{ $match: { ...base, createdAt: { $gte: start }, status: { $ne: 'cancelled' } } }, { $group: { _id: '$source', n: { $sum: 1 }, revenue: { $sum: '$total' } } }]),
     Order.countDocuments({ ...base, status: { $in: ['new', 'confirmed', 'preparing', 'ready', 'out_for_delivery'] } }),
+    Order.countDocuments({ ...base, status: 'new' }),
+    Order.countDocuments({ ...base, paymentStatus: 'pending', status: { $ne: 'cancelled' } }),
+    Order.findOne({ ...base, status: 'new' }).sort({ createdAt: -1 }).select('createdAt number').lean(),
   ]);
   const by = Object.fromEntries(today.map((t) => [t._id, t]));
   res.json({
-    open, ordersToday: today.reduce((s, t) => s + t.n, 0), salesToday: today.reduce((s, t) => s + t.revenue, 0),
+    open, newOrders, pendingPayments, latestNew: latestNew ? { number: latestNew.number, at: latestNew.createdAt } : null, ordersToday: today.reduce((s, t) => s + t.n, 0), salesToday: today.reduce((s, t) => s + t.revenue, 0),
     posToday: by.pos?.n || 0, onlineToday: by.online?.n || 0,
   });
 }));
 
 const patchSchema = z.object({
-  status: z.enum(STATUSES), paymentStatus: z.enum(['unpaid', 'paid']), paymentMethod: z.enum(['cash', 'card', 'online', 'cod']),
+  status: z.enum(STATUSES), paymentStatus: z.enum(['unpaid', 'pending', 'paid', 'failed']), paymentMethod: z.enum(['cash', 'card', 'online', 'cod', 'jazzcash', 'easypaisa', 'bank']),
   riderId: z.string().nullable(),
 }).partial();
 const markPaidIfCod = (order) => { if (order.paymentMethod === 'cod' && order.paymentStatus === 'unpaid') order.paymentStatus = 'paid'; };
@@ -100,6 +104,7 @@ router.patch('/orders/:id', requirePerm('orders.manage'), wrap(async (req, res) 
   const d = patchSchema.parse(req.body);
   const order = await Order.findOne({ _id: req.params.id, ...orderScope(req) });
   if (!order) throw new HttpError(404, 'Order not found');
+  let statusChanged = null;
   if (order.status === 'cancelled') throw new HttpError(409, 'A cancelled order cannot be changed');
   // Finished orders stay finished; the one exception is voiding a completed POS sale (a cashier's mistake).
   const voidingPosSale = order.source === 'pos' && order.status === 'completed' && d.status === 'cancelled';
@@ -118,14 +123,17 @@ router.patch('/orders/:id', requirePerm('orders.manage'), wrap(async (req, res) 
     if (d.status === 'cancelled') {
       const f = await featuresFor(req.tenant);
       if (f.inventory) await restoreStock(req.tenantId, order.items.map((i) => ({ itemId: i.itemId, qty: i.qty })));
+      if (order.promoCode) await Promo.updateOne({ tenantId: req.tenantId, code: order.promoCode, used: { $gt: 0 } }, { $inc: { used: -1 } });
     }
     pushStatus(order, d.status, req.user.name);
     if (['delivered', 'completed'].includes(d.status)) markPaidIfCod(order);
+    statusChanged = d.status;
   }
   if (d.paymentStatus) order.paymentStatus = d.paymentStatus;
   if (d.paymentMethod) order.paymentMethod = d.paymentMethod;
   await order.save();
   await audit(req, 'order.update', { details: { number: order.number, ...d } });
+  if (statusChanged) await notifyOrder(req.tenant, order, statusChanged);
   res.json({ order });
 }));
 
@@ -153,7 +161,15 @@ router.patch('/deliveries/:id', requirePerm('deliveries.use'), wrap(async (req, 
   if (status === 'delivered') markPaidIfCod(order);
   await order.save();
   await audit(req, 'delivery.update', { details: { number: order.number, status } });
+  await notifyOrder(req.tenant, order, status);
   res.json({ order });
+}));
+// Live location: the rider's phone sends its position while the order is out for delivery (customer sees it on the tracking map).
+router.patch('/deliveries/:id/location', requirePerm('deliveries.use'), wrap(async (req, res) => {
+  const d = z.object({ lat: z.coerce.number().min(-90).max(90), lng: z.coerce.number().min(-180).max(180) }).parse(req.body);
+  const r = await Order.updateOne({ _id: req.params.id, tenantId: req.tenantId, riderId: req.user._id, status: 'out_for_delivery' }, { $set: { riderLocation: { ...d, at: new Date() } } });
+  if (!r.matchedCount) throw new HttpError(404, 'Delivery not found or not on the way');
+  res.json({ ok: true });
 }));
 
 // ---------- Delivery areas and ordering settings ----------
@@ -212,6 +228,7 @@ router.put('/ordering', areas, wrap(async (req, res) => {
   const d = z.object({
     taxPercent: z.coerce.number().min(0).max(50), taxInclusive: z.boolean(), taxLabel: z.string().trim().max(20),
     minOrder: z.coerce.number().min(0), etaMinutes: z.coerce.number().int().min(5).max(240),
+    paymentAccounts: z.array(z.object({ method: z.enum(['jazzcash', 'easypaisa', 'bank']), accountName: z.string().trim().max(80).optional(), accountNumber: z.string().trim().max(60).optional(), instructions: z.string().trim().max(300).optional(), enabled: z.boolean().optional() })).max(6),
   }).partial().parse(req.body);
   for (const [k, v] of Object.entries(d)) req.tenant.set(`ordering.${k}`, v);
   await req.tenant.save();

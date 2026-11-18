@@ -62,7 +62,7 @@ export function Shell({ title, brand, logo, nav, banner, children }) {
         <nav>
           {visible.map((n, i) => (n.sep
             ? <div key={i} className="sep">{n.sep}</div>
-            : <Link key={n.href} href={n.href} className={(n.exact ? path === n.href : path.startsWith(n.href)) ? 'on' : ''}>{n.icon} {n.label}</Link>))}
+            : <Link key={n.href} href={n.href} className={(n.exact ? path === n.href : path.startsWith(n.href)) ? 'on' : ''}>{n.icon} {n.label}{n.badge > 0 && <span className="nav-badge">{n.badge}</span>}</Link>))}
         </nav>
       </aside>
       <div className="main">

@@ -87,12 +87,12 @@ function CatModal({ cat, slug, onClose, onSaved }) {
 }
 
 function ItemModal({ item, cats, slug, noun, features, branches, isVendor, onClose, onSaved }) {
-  const [f, setF] = useState({ categoryId: item.categoryId, name: item.name || '', description: item.description || '', price: item.price ?? '', image: item.image || '', isAvailable: item.isAvailable !== false, discountPercent: item.discountPercent || 0, stock: item.stock ?? '', branchId: item.branchId || '' });
+  const [f, setF] = useState({ categoryId: item.categoryId, name: item.name || '', description: item.description || '', price: item.price ?? '', image: item.image || '', isAvailable: item.isAvailable !== false, discountPercent: item.discountPercent || 0, stock: item.stock ?? '', branchId: item.branchId || '', optionGroups: item.optionGroups || [] });
   const [err, setErr] = useState('');
   const [fe, setFe] = useState({});
   async function save(e) {
     e.preventDefault(); setErr(''); setFe({});
-    try { await api(item._id ? `/tenant/menu/items/${item._id}` : '/tenant/menu/items', { method: item._id ? 'PUT' : 'POST', body: { ...f, price: Number(f.price), discountPercent: Number(f.discountPercent) || 0, stock: f.stock === '' ? null : Number(f.stock), ...(isVendor ? {} : { branchId: f.branchId || null }) }, tenant: slug }); onSaved(); } catch (x) { setErr(x.message); setFe(x.errors || {}); }
+    try { await api(item._id ? `/tenant/menu/items/${item._id}` : '/tenant/menu/items', { method: item._id ? 'PUT' : 'POST', body: { ...f, price: Number(f.price), discountPercent: Number(f.discountPercent) || 0, stock: f.stock === '' ? null : Number(f.stock), ...(isVendor ? {} : { branchId: f.branchId || null }), optionGroups: f.optionGroups.map((g) => ({ ...g, min: Number(g.min) || 0, max: Number(g.max) || 0, options: g.options.filter((x) => x.name.trim()).map((x) => ({ ...x, price: Number(x.price) || 0 })) })).filter((g) => g.name.trim() && g.options.length) }, tenant: slug }); onSaved(); } catch (x) { setErr(x.message); setFe(x.errors || {}); }
   }
   return (
     <Modal title={item._id ? `Edit ${noun.toLowerCase()}` : `New ${noun.toLowerCase()}`} onClose={onClose}>
@@ -105,6 +105,7 @@ function ItemModal({ item, cats, slug, noun, features, branches, isVendor, onClo
         {features.discounts && <Field label="Discount (%)" type="number" min="0" max="90" step="1" value={f.discountPercent} onChange={(e) => setF({ ...f, discountPercent: e.target.value })} error={fe.discountPercent} hint="Shown as a sale price on the website. 0 = no discount." />}
         {features.inventory && <Field label="Stock" type="number" min="0" step="1" value={f.stock} onChange={(e) => setF({ ...f, stock: e.target.value })} error={fe.stock} hint="Leave empty to not track stock. At 0 the item shows as sold out." />}
         {!isVendor && branches.length > 0 && <Field label="Branch"><select value={f.branchId} onChange={(e) => setF({ ...f, branchId: e.target.value })}><option value="">All branches</option>{branches.map((b) => <option key={b._id} value={b._id}>{b.name}</option>)}</select></Field>}
+        <OptionEditor groups={f.optionGroups} onChange={(g) => setF({ ...f, optionGroups: g })} />
         <ImageField label="Image" value={f.image} onChange={(v) => setF({ ...f, image: v })} uploadPath="/tenant/media" tenant={slug} />
         <label><input type="checkbox" checked={f.isAvailable} onChange={(e) => setF({ ...f, isAvailable: e.target.checked })} /> Available</label>
         <div className="row" style={{ marginTop: 14 }}><button className="btn primary">Save</button><button type="button" className="btn" onClick={onClose}>Cancel</button></div>
@@ -132,5 +133,38 @@ function ImportModal({ slug, onClose, onDone }) {
       <textarea rows={8} value={text} onChange={(e) => setText(e.target.value)} style={{ width: '100%', fontFamily: 'monospace', padding: 8, border: '1px solid #d0d5dd', borderRadius: 8 }} />
       <div className="row" style={{ marginTop: 10 }}><button className="btn primary" disabled={!text.trim()} onClick={run}>Import</button><button className="btn" onClick={onClose}>Cancel</button></div>
     </Modal>
+  );
+}
+
+// Sizes, add-ons, spice levels... (shown as choices when a customer adds the item).
+function OptionEditor({ groups, onChange }) {
+  const upd = (i, patch) => onChange(groups.map((g, k) => (k === i ? { ...g, ...patch } : g)));
+  const updOpt = (i, j, patch) => upd(i, { options: groups[i].options.map((o, k) => (k === j ? { ...o, ...patch } : o)) });
+  return (
+    <div className="opt-editor">
+      <div className="row between"><strong>Options &amp; add-ons</strong><button type="button" className="btn sm" onClick={() => onChange([...groups, { name: '', required: false, multiple: false, min: 0, max: 0, options: [{ name: '', price: 0 }] }])}>＋ Add group</button></div>
+      <small className="muted">e.g. &ldquo;Size&rdquo; (required, choose one) or &ldquo;Extras&rdquo; (optional, choose many) with a price for each choice.</small>
+      {groups.map((g, i) => (
+        <div className="opt-group-ed" key={g._id || i}>
+          <div className="row" style={{ flexWrap: 'nowrap' }}>
+            <input className="select-sm" style={{ flex: 1 }} placeholder="Group name (Size, Extras…)" value={g.name} onChange={(e) => upd(i, { name: e.target.value })} aria-label="Group name" />
+            <button type="button" className="btn sm danger" onClick={() => onChange(groups.filter((_, k) => k !== i))}>Remove</button>
+          </div>
+          <div className="row" style={{ margin: '8px 0' }}>
+            <label><input type="checkbox" checked={g.required} onChange={(e) => upd(i, { required: e.target.checked })} /> Required</label>
+            <label><input type="checkbox" checked={g.multiple} onChange={(e) => upd(i, { multiple: e.target.checked })} /> Allow many</label>
+            {g.multiple && <label>Max <input type="number" min="0" className="select-sm" style={{ width: 64 }} value={g.max} onChange={(e) => upd(i, { max: e.target.value })} /></label>}
+          </div>
+          {g.options.map((o, j) => (
+            <div className="row" key={o._id || j} style={{ flexWrap: 'nowrap', marginBottom: 6 }}>
+              <input className="select-sm" style={{ flex: 1 }} placeholder="Choice (Large, Extra cheese…)" value={o.name} onChange={(e) => updOpt(i, j, { name: e.target.value })} aria-label="Choice name" />
+              <input className="select-sm" style={{ width: 90 }} type="number" min="0" placeholder="+ Rs." value={o.price} onChange={(e) => updOpt(i, j, { price: e.target.value })} aria-label="Extra price" />
+              <button type="button" className="btn sm" onClick={() => upd(i, { options: g.options.filter((_, k) => k !== j) })} aria-label="Remove choice">✕</button>
+            </div>
+          ))}
+          <button type="button" className="btn sm" onClick={() => upd(i, { options: [...g.options, { name: '', price: 0 }] })}>＋ Add choice</button>
+        </div>
+      ))}
+    </div>
   );
 }

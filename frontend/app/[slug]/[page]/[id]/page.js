@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { notFound, permanentRedirect } from 'next/navigation';
 import { getSite, getItem } from '@/lib/server';
+import { storeMeta, storeViewport } from '@/lib/meta';
 import SiteView, { Dish } from '@/components/site/SiteView';
 import Unavailable from '@/components/site/Unavailable';
 import AddToCart from '@/components/site/AddToCart';
@@ -14,11 +15,12 @@ export async function generateMetadata({ params }) {
   const data = site && (await getItem(params.slug, params.id));
   if (!data) return { title: 'Not found' };
   const { item } = data;
-  return {
-    title: `${item.name} | ${site.tenant.name}`,
-    description: item.description || site.tenant.seo?.description,
-    openGraph: { title: item.name, description: item.description, images: item.image ? [item.image] : undefined },
-  };
+  const m = storeMeta(site, item.name);
+  return { ...m, description: item.description || m.description, openGraph: { ...m.openGraph, description: item.description || m.description, images: item.image ? [item.image] : m.openGraph.images } };
+}
+export async function generateViewport({ params }) {
+  const { site } = await getSite(params.slug);
+  return storeViewport(site);
 }
 
 export default async function ItemPage({ params }) {
@@ -47,7 +49,7 @@ export default async function ItemPage({ params }) {
           {item.lowStock && <p className="low-stock">Only {item.lowStock} left in stock!</p>}
           <p className="lead left" style={{ marginBottom: 22 }}>{item.description || 'Freshly prepared for you.'}</p>
           {cartOn
-            ? <AddToCart id={item.id} disabled={!item.isAvailable} label={item.discountPercent > 0 ? 'Add to cart with discount' : 'Add to cart'} />
+            ? <AddToCart item={item} disabled={!item.isAvailable} label={item.discountPercent > 0 ? 'Add to cart with discount' : 'Add to cart'} />
             : <div className="row">{item.isAvailable ? <Link className="cta" href={`/${t.slug}/contact`}>Order or enquire</Link> : <span className="sold">Currently unavailable</span>}<Link className="cta alt dark" href={listHref}>Back to menu</Link></div>}
         </div>
       </div>

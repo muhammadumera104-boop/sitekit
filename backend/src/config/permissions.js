@@ -29,6 +29,9 @@ const matrix = {
   'areas.manage': [R.SA, R.PS, R.TO, R.TM],        // delivery cities / areas, fees, tax
   'orders.assign': [...ALL_STAFF, R.TC],           // assign a delivery rider
   'deliveries.use': [R.TR],                        // rider: own deliveries
+  'promos.manage': [R.SA, R.PS, R.TO, R.TM],
+  'reviews.manage': [...ALL_STAFF],
+  'customers.view': [R.SA, R.PS, R.TO, R.TM],
   'orders.view': [...ALL_STAFF, R.TC],             // transactions
   'orders.manage': [...ALL_STAFF, R.TC],
   'pos.use': [...ALL_STAFF, R.TC],                 // point of sale

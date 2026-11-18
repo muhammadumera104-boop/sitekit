@@ -8,7 +8,7 @@
     "start": "node src/server.js",
     "seed": "node src/seed/seed.js",
     "seed:photos": "node src/seed/photos.js",
-    "test": "node --test tests/isolation.test.js tests/commerce.test.js tests/ordering.test.js"
+    "test": "node --test tests/isolation.test.js tests/commerce.test.js tests/ordering.test.js tests/extras.test.js"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",

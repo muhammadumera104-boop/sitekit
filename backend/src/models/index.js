@@ -19,8 +19,8 @@ const Tenant = mongoose.model('Tenant', new Schema({
   theme: {
     primary: { type: String, default: '#c0392b' },
     secondary: { type: String, default: '#2c3e50' },
-    fontHeading: { type: String, default: 'Georgia, serif' },
-    fontBody: { type: String, default: 'system-ui, sans-serif' },
+    fontHeading: { type: String, default: 'var(--font-outfit), system-ui, sans-serif' },
+    fontBody: { type: String, default: 'var(--font-jakarta), system-ui, sans-serif' },
     radius: { type: String, default: '10px' },
   },
   branding: { logo: String, favicon: String, tagline: String },
@@ -44,6 +44,8 @@ const Tenant = mongoose.model('Tenant', new Schema({
     minOrder: { type: Number, default: 0, min: 0 },
     etaMinutes: { type: Number, default: 45, min: 5, max: 240 },
     payments: { type: [String], default: ['cod'] },
+    // Manual online payment: the customer sends money to one of these accounts and enters the transaction id; staff verify it.
+    paymentAccounts: [{ method: { type: String, enum: ['jazzcash', 'easypaisa', 'bank'] }, accountName: String, accountNumber: String, instructions: String, enabled: { type: Boolean, default: true }, _id: false }],
   },
   owner: { name: String, email: String, phone: String },
   createdBy: { type: oid, ref: 'User' },
@@ -109,6 +111,9 @@ const MenuItem = mongoose.model('MenuItem', new Schema({
   discountPercent: { type: Number, default: 0, min: 0, max: 90 },
   stock: { type: Number, default: null, min: 0 }, // null = not tracked
   branchId: { type: oid, ref: 'Branch', default: null, index: true }, // null = all branches
+  // Sizes, add-ons, etc.: { name: 'Size', required, multiple, min, max, options: [{ name, price }] }
+  optionGroups: [{ name: { type: String, required: true }, required: { type: Boolean, default: false }, multiple: { type: Boolean, default: false }, min: { type: Number, default: 0 }, max: { type: Number, default: 0 },
+    options: [{ name: { type: String, required: true }, price: { type: Number, default: 0, min: 0 } }] }],
   order: { type: Number, default: 0 },
 }, opts));
 
@@ -159,21 +164,49 @@ const orderSchema = new Schema({
   branchId: { type: oid, ref: 'Branch', default: null },
   orderType: { type: String, enum: ['delivery', 'pickup', 'dine_in'], default: 'delivery' },
   city: String, area: String, areaId: { type: oid, ref: 'ServiceArea', default: null },
-  customer: { title: String, name: String, phone: String, altPhone: String, address: String, landmark: String, email: String, note: String },
+  customerId: { type: oid, ref: 'Customer', default: null, index: true },
+  customer: { title: String, name: String, phone: String, altPhone: String, address: String, landmark: String, email: String, note: String, location: { lat: Number, lng: Number } },
+  promoCode: String, promoDiscount: { type: Number, default: 0 },
+  paymentRef: String, paymentSender: String,
+  riderLocation: { lat: Number, lng: Number, at: Date },
+  reviewed: { type: Boolean, default: false },
   instructions: String, changeFor: Number,
   gift: { isGift: Boolean, recipientName: String, recipientPhone: String, message: String },
-  items: [{ itemId: oid, name: String, price: Number, discountPercent: Number, unitPrice: Number, qty: Number, note: String }],
+  items: [{ itemId: oid, name: String, price: Number, discountPercent: Number, unitPrice: Number, qty: Number, note: String,
+    options: [{ groupId: String, optionId: String, group: String, name: String, price: Number, _id: false }] }],
   subtotal: Number, discount: Number, tax: { type: Number, default: 0 }, deliveryFee: { type: Number, default: 0 }, total: Number, // total = what the customer pays
   riderId: { type: oid, ref: 'User', default: null, index: true },
   history: [{ status: String, at: { type: Date, default: Date.now }, by: String, _id: false }],
   status: { type: String, enum: ORDER_STATUSES, default: 'new', index: true },
-  paymentStatus: { type: String, enum: ['unpaid', 'paid'], default: 'unpaid' },
-  paymentMethod: { type: String, enum: ['cash', 'card', 'online', 'cod'], default: 'cod' },
+  paymentStatus: { type: String, enum: ['unpaid', 'pending', 'paid', 'failed'], default: 'unpaid' },
+  paymentMethod: { type: String, enum: ['cash', 'card', 'online', 'cod', 'jazzcash', 'easypaisa', 'bank'], default: 'cod' },
   createdBy: { type: oid, ref: 'User' },
 }, opts);
 orderSchema.index({ tenantId: 1, createdAt: -1 });
 const Order = mongoose.model('Order', orderSchema);
 
+const customerSchema = new Schema({
+  tenantId, name: { type: String, required: true, trim: true }, phone: { type: String, required: true, trim: true },
+  email: { type: String, lowercase: true, trim: true }, passwordHash: String, lastLogin: Date,
+  addresses: [{ label: String, city: String, areaId: String, areaName: String, address: String, landmark: String, lat: Number, lng: Number }],
+}, opts);
+customerSchema.index({ tenantId: 1, phone: 1 }, { unique: true });
+const Customer = mongoose.model('Customer', customerSchema);
+
+const promoSchema = new Schema({
+  tenantId, code: { type: String, required: true, uppercase: true, trim: true }, description: String,
+  type: { type: String, enum: ['percent', 'flat'], default: 'percent' }, value: { type: Number, required: true, min: 1 },
+  minOrder: { type: Number, default: 0 }, maxDiscount: { type: Number, default: 0 },
+  validFrom: Date, validTo: Date, usageLimit: { type: Number, default: 0 }, used: { type: Number, default: 0 }, isActive: { type: Boolean, default: true },
+}, opts);
+promoSchema.index({ tenantId: 1, code: 1 }, { unique: true });
+const Promo = mongoose.model('Promo', promoSchema);
+
+const Review = mongoose.model('Review', new Schema({
+  tenantId, orderId: { type: oid, ref: 'Order', index: true }, orderNumber: String, name: String,
+  rating: { type: Number, min: 1, max: 5, required: true }, comment: String, reply: String, isPublished: { type: Boolean, default: true },
+}, opts));
+
 const PlatformSetting = mongoose.model('PlatformSetting', new Schema({ key: { type: String, unique: true }, value: Schema.Types.Mixed }, opts));
 
-module.exports = { ServiceArea, Branch, Order, PlatformSetting, Tenant, User, Role, Template, Page, MenuCategory, MenuItem, Media, Message, AuditLog, Session, Visit };
+module.exports = { Customer, Promo, Review, ServiceArea, Branch, Order, PlatformSetting, Tenant, User, Role, Template, Page, MenuCategory, MenuItem, Media, Message, AuditLog, Session, Visit };

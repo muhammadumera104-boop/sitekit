@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { api } from '@/lib/api';
 import { fmtDate, money } from '@/lib/util';
 import { useTenant } from '@/components/TenantCtx';
@@ -12,7 +12,25 @@ export default function Deliveries() {
   const { data, error, loading, reload } = useLoad(() => api('/tenant/deliveries', { tenant: slug }), [slug]);
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState('');
+  const [share, setShare] = useState(true);
+  const [geo, setGeo] = useState('');
+  const last = useRef(0);
   useEffect(() => { const t = setInterval(reload, 20000); return () => clearInterval(t); }, [reload]);
+
+  // While an order is out for delivery, share the rider's position with the customer (about every 15 seconds).
+  const onTheWay = (data?.items || []).filter((o) => o.status === 'out_for_delivery');
+  const ids = onTheWay.map((o) => o._id).join(',');
+  useEffect(() => {
+    if (!share || !ids || !navigator.geolocation) return undefined;
+    const send = (p) => {
+      if (Date.now() - last.current < 14000) return;
+      last.current = Date.now();
+      ids.split(',').forEach((id) => api(`/tenant/deliveries/${id}/location`, { method: 'PATCH', tenant: slug, body: { lat: p.coords.latitude, lng: p.coords.longitude } }).catch(() => {}));
+      setGeo(`Live location sent ${new Date().toLocaleTimeString()}`);
+    };
+    const w = navigator.geolocation.watchPosition(send, () => setGeo('Turn on location access to share your live position.'), { enableHighAccuracy: true, maximumAge: 5000 });
+    return () => navigator.geolocation.clearWatch(w);
+  }, [share, ids, slug]);
 
   async function go(o, status) {
     setErr(''); setBusy(o._id);
@@ -26,6 +44,7 @@ export default function Deliveries() {
     <Protected area="tenant" slug={slug} perm="deliveries.use">
       <div className="page-head"><h1>My deliveries</h1><button className="btn" onClick={reload}>Refresh</button></div>
       <Alert>{error || err}</Alert>
+      {onTheWay.length > 0 && <div className="alert info row between"><span>📡 {share ? (geo || 'Sharing your live location with customers…') : 'Live location sharing is off'}</span><label style={{ cursor: 'pointer' }}><input type="checkbox" checked={share} onChange={(e) => setShare(e.target.checked)} /> Share location</label></div>}
       {loading && !data ? <Loading /> : (
         <>
           {!active.length && <div className="card center muted">No deliveries assigned to you right now. New ones appear here automatically.</div>}
@@ -48,7 +67,7 @@ export default function Deliveries() {
                   </div>
                   <div className="row">
                     {o.customer?.phone && <a className="btn" href={`tel:${o.customer.phone}`}>📞 Call customer</a>}
-                    <a className="btn" target="_blank" rel="noopener noreferrer" href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(addr)}`}>🗺️ Open map</a>
+                    <a className="btn" target="_blank" rel="noopener noreferrer" href={`https://www.google.com/maps/search/?api=1&query=${o.customer?.location?.lat != null ? `${o.customer.location.lat},${o.customer.location.lng}` : encodeURIComponent(addr)}`}>🗺️ Open map</a>
                     {o.status !== 'out_for_delivery'
                       ? <button className="btn primary" disabled={busy === o._id} onClick={() => go(o, 'out_for_delivery')}>Picked up</button>
                       : <button className="btn primary" disabled={busy === o._id} onClick={() => go(o, 'delivered')}>✓ Delivered</button>}
