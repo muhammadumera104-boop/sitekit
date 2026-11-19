@@ -144,6 +144,16 @@ async function topUp(tenant, hash) {
     made.push('new logo');
   }
 
+  // New Fashion Hub hero photo (replaces the first autumn-edit image).
+  if (slug === 'fashionhub') {
+    const OLD = '1496747611176-843222e1e57c', NEW = '1779912217802-6fd9062a32c7';
+    const swap = (u) => String(u || '').replace(OLD, NEW);
+    if (String(tenant.hero?.image || '').includes(OLD) || (tenant.slides || []).some((x) => String(x.image || '').includes(OLD))) {
+      await models.Tenant.updateOne({ _id: tenant._id }, { $set: { 'hero.image': swap(tenant.hero?.image), slides: (tenant.slides || []).map((x) => ({ ...(x.toObject?.() || x), image: swap(x.image) })) } });
+      made.push('new hero photo');
+    }
+  }
+
   // Premium dark storefront for every store (only where no mode is stored yet).
   if ((await models.Tenant.updateOne({ _id: tenant._id, 'theme.mode': { $exists: false } }, { $set: { 'theme.mode': 'dark' } })).modifiedCount) made.push('dark theme');
 
