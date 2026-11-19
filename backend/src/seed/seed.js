@@ -9,6 +9,8 @@ const models = require('../models');
 const { permissionsFor, R, matrix } = require('../config/permissions');
 const { registerTemplates } = require('../services/templates');
 const { createTenant } = require('../services/tenants');
+const { ensureRehmat } = require('./rehmat');
+const { fhLogo, FH_ID } = require('./brandmarks');
 
 const tenants = require("./data");
 const { photo } = tenants;
@@ -136,6 +138,12 @@ async function topUp(tenant, hash) {
 
   if (!tenant.planId && global.__proPlan) { await models.Tenant.updateOne({ _id: tenant._id }, { $set: { planId: global.__proPlan._id } }); made.push('Pro plan'); }
 
+  // New Fashion Hub logo (replaces the first plain monogram).
+  if (slug === 'fashionhub' && !String(tenant.branding?.logo || '').includes(FH_ID)) {
+    await models.Tenant.updateOne({ _id: tenant._id }, { $set: { 'branding.logo': fhLogo } });
+    made.push('new logo');
+  }
+
   // Premium dark storefront for every store (only where no mode is stored yet).
   if ((await models.Tenant.updateOne({ _id: tenant._id, 'theme.mode': { $exists: false } }, { $set: { 'theme.mode': 'dark' } })).modifiedCount) made.push('dark theme');
 
@@ -216,6 +224,10 @@ async function topUp(tenant, hash) {
     const made = await topUp(tenant, hash);
     if (made.length) console.log(`  added: ${made.join(', ')}`);
   }
+
+  // The bakery store created in the admin wizard (restores it if it was soft-deleted and adds a starter menu).
+  const rehmat = await ensureRehmat(models, global.__proPlan);
+  if (rehmat.length) console.log(`- rehmatesheereen: ${rehmat.length} changes (${rehmat.filter((x) => !x.startsWith('product')).join(', ')}; ${rehmat.filter((x) => x.startsWith('product')).length} products)`);
 
   console.log('\nSeed done.');
   console.log('  Platform logins (Super Admin / Staff): see SUPER_ADMIN_* and STAFF_* in backend/.env');

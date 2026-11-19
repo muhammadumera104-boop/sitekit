@@ -100,7 +100,7 @@ module.exports = [
     // Fashion hub: premium dark storefront (gold accent, serif headings), sizes + colours, flash sale, wishlist.
     name: 'Fashion Hub', slug: 'fashionhub', templateKey: 'store', businessType: 'fashion', status: 'active',
     owner: { name: 'Fashion Hub Owner', email: 'owner@fashionhub.test' }, editor: { name: 'Fashion Hub Editor', email: 'editor@fashionhub.test' },
-    branding: { logo: mark('FH', '#c9a24b', '#09090b', 54), tagline: 'Quiet luxury, delivered to your door' },
+    branding: { logo: require('./brandmarks').fhLogo, tagline: 'Quiet luxury, delivered to your door' },
     theme: { primary: '#c9a24b', secondary: '#09090b', mode: 'dark', fontHeading: 'var(--font-playfair), Georgia, serif', fontBody: 'var(--font-jakarta), system-ui, sans-serif', radius: '14px' },
     hero: { title: 'The Autumn Edit', subtitle: 'Layered looks, rich textures, quiet luxury.', image: un('1496747611176-843222e1e57c', 1800, 1000) },
     slides: [
