@@ -3,6 +3,8 @@ import './site.css';
 import './ordering.css';
 import './theme.css';
 import './extras.css';
+import './fashion.css';
+import './dark.css';
 import { Plus_Jakarta_Sans, Outfit, Playfair_Display } from 'next/font/google';
 import { AuthProvider } from '@/lib/auth';
 
@@ -26,7 +28,7 @@ export default function RootLayout({ children }) {
   return (
     <html lang="en" className={`${jakarta.variable} ${outfit.variable} ${playfair.variable}`} suppressHydrationWarning>
       <head>
-        <script dangerouslySetInnerHTML={{ __html: "try{var t=localStorage.getItem('theme');if(t)document.documentElement.dataset.theme=t}catch(e){}" }} />
+        <script dangerouslySetInnerHTML={{ __html: "try{var t=localStorage.getItem('theme')||'dark';document.documentElement.dataset.theme=t}catch(e){}" }} />
       </head>
       <body><AuthProvider>{children}</AuthProvider></body>
     </html>

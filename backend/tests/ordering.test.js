@@ -55,7 +55,7 @@ test('delivery order: 15% tax included in price + delivery fee, like the referen
   assert.equal(order.items[0].note, 'No mayo');
   for (const s of ['confirmed', 'preparing', 'ready']) assert.equal((await call(`/tenant/orders/${order._id}`, { method: 'PATCH', token: owner, body: { status: s } })).status, 200);
   assert.equal((await call(`/tenant/orders/${order._id}`, { method: 'PATCH', token: owner, body: { status: 'out_for_delivery' } })).status, 400, 'needs a rider first');
-  const riders = (await call('/tenant/riders', { token: owner })).data.riders;
+  const riders = (await call('/tenant/riders', { token: owner })).data.riders.sort((a, b) => (b.name === 'Kababjees Rider') - (a.name === 'Kababjees Rider'));
   assert.ok(riders.length);
   assert.equal((await call(`/tenant/orders/${order._id}`, { method: 'PATCH', token: owner, body: { riderId: riders[0]._id } })).status, 200);
 

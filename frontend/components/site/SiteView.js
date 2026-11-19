@@ -8,6 +8,7 @@ import Checkout from './Checkout';
 import TrackOrder from './TrackOrder';
 import ComplaintForm from './ComplaintForm';
 import Account from './Account';
+import { HeroSlider, FlashSale, Perks, Newsletter, Wishlist } from './HomeBlocks';
 import { money } from '@/lib/util';
 
 // Data-driven template renderer (FR-W2): layout comes from the template key, content from the tenant's data.
@@ -91,17 +92,24 @@ export default function SiteView({ site, page, preview = false, detail = null })
   const itemHref = (i) => (preview ? null : `/${t.slug}/${menuSlug}/${i.id}`);
   const style = { '--primary': t.theme?.primary, '--secondary': t.theme?.secondary, '--fh': t.theme?.fontHeading, '--fb': t.theme?.fontBody, '--r': t.theme?.radius, '--on-primary': onColor(t.theme?.primary), '--on-sec': onColor(t.theme?.secondary) };
   const current = page === 'menu' ? menuSlug : page;
-  const ext = ['checkout', 'track', 'complaint', 'locations', 'account'].includes(page) ? page : null; // ordering pages
+  const ext = ['checkout', 'track', 'complaint', 'locations', 'account', 'wishlist'].includes(page) ? page : null; // ordering pages
+  const dark = t.theme?.mode !== 'light'; // premium dark storefront by default
+  const fashion = t.businessType === 'fashion';
+  const etaText = site.ordering?.etaLabel || (site.ordering?.etaMinutes ? `~${site.ordering.etaMinutes} min` : '');
 
   const nav = [
     { slug: '', title: 'Home' },
     sec.menu && { slug: menuSlug, title: label },
     sec.about && t.about && { slug: 'about', title: 'About' },
     sec.gallery && site.gallery.length > 0 && { slug: 'gallery', title: 'Gallery' },
+    isStore && allItemsHaveSale(site) && { slug: 'sale', title: 'Sale', hrefOverride: `${href(menuSlug)}?sale=1` },
     ...site.nav.map((n) => ({ slug: n.slug, title: n.title })),
     sec.contact && { slug: 'contact', title: 'Contact' },
-  ].filter(Boolean).map((n) => ({ ...n, href: href(n.slug) }));
+  ].filter(Boolean).map((n) => ({ ...n, href: n.hrefOverride || href(n.slug) }));
 
+  // The header keeps only one custom page (the rest live in the footer) so the menu stays clean.
+  const customSlugs = new Set(site.nav.map((n) => n.slug));
+  const headerNav = nav.filter((n, i, arr) => !customSlugs.has(n.slug) || arr.filter((x) => customSlugs.has(x.slug)).findIndex((x) => x.slug === n.slug) < 1);
   const showAll = !current && !detail && !ext;
   const show = (name) => !detail && !ext && (showAll || current === name);
   const today = new Date().toLocaleDateString('en-US', { weekday: 'long' });
@@ -114,20 +122,37 @@ export default function SiteView({ site, page, preview = false, detail = null })
   // "Popular right now": discounted first, then the first dishes of each category.
   const featured = [...availableItems.filter((i) => i.discountPercent > 0), ...site.menu.flatMap((c) => c.items.filter((i) => i.isAvailable).slice(0, 2))]
     .filter((i, k, arr) => arr.findIndex((x) => x.id === i.id) === k).slice(0, 10);
+  const tagged = (tag) => availableItems.filter((i) => i.tags?.includes(tag)).slice(0, 10);
+  const rows = [['featured', 'Featured products', 'Hand-picked favourites'], ['new', 'New arrivals', 'Fresh in this week'], ['bestseller', 'Best sellers', 'What everyone is buying']].map(([tag, title, sub]) => ({ tag, title, sub, items: tagged(tag) })).filter((r) => r.items.length);
+  const saleItems = availableItems.filter((i) => i.discountPercent > 0).slice(0, 10);
+  const slides = site.tenant.slides || [];
   const tiles = site.menu.filter((c) => c.items.length).map((c) => ({ ...c, img: c.items.find((i) => i.image)?.image }));
   const hasHero = showAll;
   const catHref = (c) => (useCatalog ? `${href(menuSlug)}?cat=${c.id}` : `${href(menuSlug)}#cat-${slugOf(c.name)}`);
 
   return (
-    <div className={`site t-${t.templateKey} ${hasHero ? 'has-hero' : ''}`} style={style}>
+    <div className={`site t-${t.templateKey} ${hasHero ? 'has-hero' : ''} ${dark ? 'dark' : ''} ${fashion ? 'biz-fashion' : ''} ${t.announcement ? 'has-ann' : ''}`} style={style}>
     <OrderingProvider slug={t.slug} menuSlug={menuSlug} menu={site.menu} features={features} ordering={site.ordering} locations={site.locations || []} preview={preview}>
+      {t.announcement && <div className="ann-bar" role="note"><span>{t.announcement.text}</span></div>}
       {preview && <div className="preview-bar">Preview — this is how your website looks{t.status !== 'active' ? ' (not published yet)' : ''}</div>}
-      <SiteHeader name={t.name} logo={t.branding?.logo} home={href('')} nav={nav} current={current || ''} overHero={hasHero}
+      <SiteHeader name={t.name} logo={t.branding?.logo} home={href('')} nav={headerNav} current={current || ''} overHero={hasHero}
         staffHref={preview ? null : `/${t.slug}/login`} trackHref={features.orderTracking && features.cart && !preview ? `/${t.slug}/track` : null}
-        accountHref={features.accounts && features.cart && !preview ? `/${t.slug}/account` : null} />
+        accountHref={features.accounts && features.cart && !preview ? `/${t.slug}/account` : null}
+        searchHref={features.search && useCatalog && !preview ? `/${t.slug}/${menuSlug}` : null} wishHref={useCatalog && !preview ? `/${t.slug}/wishlist` : null} />
 
       <main>
-        {showAll && (
+        {showAll && slides.length > 0 && (
+          <>
+            <HeroSlider slides={slides} slug={t.slug} preview={preview}>
+              <ul className="hero-chips">
+                {reviews?.count > 0 && <li>⭐ {reviews.avg} <span style={{ opacity: .75 }}>({reviews.count} reviews)</span></li>}
+                {features.cart && etaText && <li>🚚 Delivery {etaText}</li>}
+                {site.ordering?.freeDeliveryOver > 0 && <li>🎁 Free delivery over {money(site.ordering.freeDeliveryOver)}</li>}
+              </ul>
+            </HeroSlider>
+          </>
+        )}
+        {showAll && slides.length === 0 && (
           <>
             <section className="hero" id="top" style={t.hero?.image ? { backgroundImage: `url(${t.hero.image})` } : undefined}>
               <div className="wrap">
@@ -141,7 +166,7 @@ export default function SiteView({ site, page, preview = false, detail = null })
                   </div>
                   <ul className="hero-chips fade-up d3">
                     {reviews?.count > 0 && <li>⭐ {reviews.avg} <span style={{ opacity: .75 }}>({reviews.count} reviews)</span></li>}
-                    {features.cart && site.ordering?.etaMinutes && <li>🛵 Delivery in ~{site.ordering.etaMinutes} min</li>}
+                    {features.cart && etaText && <li>🛵 Delivery {etaText}</li>}
                     {features.cart && features.pickup && <li>🏪 Pickup available</li>}
                     {site.branches?.length > 1 && <li>📍 {site.branches.length} branches</li>}
                   </ul>
@@ -161,8 +186,16 @@ export default function SiteView({ site, page, preview = false, detail = null })
           </>
         )}
 
-        {/* Home: popular items, category tiles, about, reviews, gallery, call to action, contact */}
-        {showAll && sec.menu && featured.length > 0 && (
+        {/* Home: perks, flash sale, tagged rows, category tiles, about, reviews, gallery, call to action, contact */}
+        {showAll && fashion && <div className="wrap"><Perks eta={site.ordering?.etaLabel} /></div>}
+        {showAll && sec.menu && site.tenant.flashSale && saleItems.length > 0 && <FlashSale sale={site.tenant.flashSale} items={saleItems} href={`${href(menuSlug)}?sale=1`} preview={preview} />}
+        {showAll && sec.menu && rows.map((r) => (
+          <section className="sec" key={r.tag}><div className="wrap">
+            <div className="sec-head"><div><span className="eyebrow">{r.title}</span><h2>{r.sub}</h2></div><Link className="link-arrow" href={href(menuSlug)}>View all →</Link></div>
+            <Featured items={r.items} preview={preview} />
+          </div></section>
+        ))}
+        {showAll && sec.menu && rows.length === 0 && featured.length > 0 && (
           <section className="sec" id="featured"><div className="wrap">
             <div className="sec-head">
               <div><span className="eyebrow">Popular right now</span><h2>{isStore ? 'Customer favourites' : 'Most loved dishes'}</h2></div>
@@ -173,7 +206,7 @@ export default function SiteView({ site, page, preview = false, detail = null })
         )}
         {showAll && sec.menu && tiles.length > 1 && (
           <section className="sec alt"><div className="wrap">
-            <span className="eyebrow center">Explore</span><h2>Browse by category</h2><p className="sub">Find exactly what you are craving.</p>
+            <span className="eyebrow center">Explore</span><h2>{fashion ? 'Shop by category' : 'Browse by category'}</h2><p className="sub">{fashion ? 'Find exactly what you are looking for.' : 'Find exactly what you are craving.'}</p>
             <div className="cat-tiles">
               {tiles.map((c) => (
                 <Link key={c.id} className="cat-tile" href={catHref(c)}>
@@ -190,6 +223,7 @@ export default function SiteView({ site, page, preview = false, detail = null })
 
         {ext === 'checkout' && <section className="sec"><div className="wrap"><Checkout /></div></section>}
         {ext === 'account' && <section className="sec"><div className="wrap"><Account slug={t.slug} /></div></section>}
+        {ext === 'wishlist' && <section className="sec"><div className="wrap"><Wishlist menu={site.menu} features={features} preview={preview} /></div></section>}
         {ext === 'track' && <section className="sec"><div className="wrap narrow"><span className="eyebrow center">Order status</span><h2>Track your order</h2><p className="sub">Enter your order number and the mobile number you used.</p><TrackOrder slug={t.slug} preview={preview} /></div></section>}
         {ext === 'complaint' && <section className="sec"><div className="wrap"><span className="eyebrow center">We are listening</span><h2>Submit your complaint</h2><p className="sub">From complaint to care — tell us what went wrong and we will make it right.</p><ComplaintForm slug={t.slug} preview={preview} /></div></section>}
         {ext === 'locations' && (
@@ -274,7 +308,7 @@ export default function SiteView({ site, page, preview = false, detail = null })
         {showAll && sec.menu && (
           <section className="sec" style={{ paddingTop: 0 }}><div className="wrap">
             <div className="cta-band">
-              <div><h2>{features.cart ? 'Hungry? We deliver.' : `Discover ${t.name}`}</h2><p>{features.cart ? `Fresh, hot and at your door${site.ordering?.etaMinutes ? ` in about ${site.ordering.etaMinutes} minutes` : ''}.` : t.branding?.tagline}</p></div>
+              <div><h2>{features.cart ? (fashion ? 'Ready to elevate your wardrobe?' : 'Hungry? We deliver.') : `Discover ${t.name}`}</h2><p>{features.cart ? (fashion ? `Delivered to your door${site.ordering?.etaLabel ? ` in ${site.ordering.etaLabel}` : ''}. Easy 14-day returns.` : `Fresh, hot and at your door${site.ordering?.etaMinutes ? ` in about ${site.ordering.etaMinutes} minutes` : ''}.`) : t.branding?.tagline}</p></div>
               <Link className="cta lg" href={href(menuSlug)}>{features.cart ? 'Order now' : `View ${label}`} →</Link>
             </div>
           </div></section>
@@ -296,6 +330,7 @@ export default function SiteView({ site, page, preview = false, detail = null })
             </div>
           </div></section>
         )}
+        {showAll && <Newsletter slug={t.slug} preview={preview} name={t.name} />}
       </main>
 
       {t.socials?.whatsapp && !preview && (
@@ -308,7 +343,7 @@ export default function SiteView({ site, page, preview = false, detail = null })
             <p style={{ opacity: .75, marginTop: 14, maxWidth: 320 }}>{t.branding?.tagline}</p>
             <div className="socials">{Object.entries(t.socials || {}).filter(([, v]) => v).map(([k, v]) => <Social key={k} k={k} v={v} />)}</div>
           </div>
-          <div><h4>Explore</h4>{nav.slice(0, 6).map((n) => <Link key={n.slug} href={n.href}>{n.title}</Link>)}</div>
+          <div><h4>Explore</h4>{nav.slice(0, 9).map((n) => <Link key={n.slug} href={n.href}>{n.title}</Link>)}</div>
           <div><h4>Help</h4>
             {!preview && features.orderTracking && features.cart && <Link href={`/${t.slug}/track`}>Track order</Link>}
             {!preview && features.accounts && features.cart && <Link href={`/${t.slug}/account`}>My account</Link>}
@@ -327,3 +362,5 @@ export default function SiteView({ site, page, preview = false, detail = null })
 }
 
 export { Dish };
+
+function allItemsHaveSale(site) { return site.menu.some((c) => c.items.some((i) => i.discountPercent > 0 && i.isAvailable)); }

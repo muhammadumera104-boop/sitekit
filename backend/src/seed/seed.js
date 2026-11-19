@@ -38,9 +38,10 @@ const AREAS = {
   ],
   unitedking: [['Karachi', 150, ['Sharfabad', 'Gulshan-e-Iqbal', 'Clifton', 'DHA Phase 6', 'Tariq Road', 'North Nazimabad']]],
   foodin: [['Karachi', 100, ['Clifton', 'DHA', 'Gulshan-e-Iqbal', 'Bahadurabad']], ['Lahore', 120, ['Gulberg', 'DHA', 'Johar Town']]],
+  fashionhub: [['Karachi', 250, ['DHA', 'Clifton', 'Gulshan-e-Iqbal', 'PECHS', 'North Nazimabad', 'Gulistan-e-Jauhar', 'Saddar']], ['Lahore', 250, ['Gulberg', 'DHA', 'Johar Town', 'Model Town', 'Bahria Town']], ['Islamabad', 300, ['F-6', 'F-7', 'F-10', 'G-11', 'Blue Area']], ['Rawalpindi', 300, ['Saddar', 'Bahria Town', 'Satellite Town']], ['Faisalabad', 300, ['D Ground', 'Peoples Colony']]],
   kravemart: [['Karachi', 0, ['SMCHS', 'PECHS', 'Gulshan-e-Iqbal', 'Clifton', 'DHA']], ['Lahore', 0, ['Gulberg', 'DHA', 'Model Town']], ['Rawalpindi', 0, ['Saddar', 'Bahria Town']]],
 };
-const ORDERING = { kababjees: { taxPercent: 15, taxInclusive: true, taxLabel: 'Tax', etaMinutes: 45 }, unitedking: { taxPercent: 15, taxInclusive: true, etaMinutes: 50 }, foodin: { taxPercent: 15, taxInclusive: true, etaMinutes: 40 }, kravemart: { taxPercent: 0, etaMinutes: 30 } };
+const ORDERING = { fashionhub: { taxPercent: 0, etaMinutes: 240, etaLabel: '2-4 days', freeDeliveryOver: 5000 }, kababjees: { taxPercent: 15, taxInclusive: true, taxLabel: 'Tax', etaMinutes: 45 }, unitedking: { taxPercent: 15, taxInclusive: true, etaMinutes: 50 }, foodin: { taxPercent: 15, taxInclusive: true, etaMinutes: 40 }, kravemart: { taxPercent: 0, etaMinutes: 30 } };
 // Extra Kababjees Fried Chicken style menu (prices from the public site; no photos - owner can upload).
 const EXTRA_MENU = {
   kababjees: [
@@ -63,11 +64,22 @@ const OPTIONS = {
   },
   foodin: { 'Classic Smash': [{ name: 'Patty', required: true, multiple: false, options: [{ name: 'Double', price: 0 }, { name: 'Triple', price: 220 }] }] },
 };
-const PROMOS = { kababjees: ['WELCOME10', 10], kravemart: ['FRESH10', 10], foodin: ['FOODIN10', 10], unitedking: ['SWEET10', 10] };
+const PROMOS = { fashionhub: ['WELCOME10', 10], kababjees: ['WELCOME10', 10], kravemart: ['FRESH10', 10], foodin: ['FOODIN10', 10], unitedking: ['SWEET10', 10] };
 const PAY_DEMO = [
   { method: 'jazzcash', accountName: 'Demo Account (replace in Dashboard)', accountNumber: '0300-0000000', instructions: 'Send the total amount, then enter the transaction ID at checkout.', enabled: true },
   { method: 'easypaisa', accountName: 'Demo Account (replace in Dashboard)', accountNumber: '0300-0000001', instructions: 'Send the total amount, then enter the transaction ID at checkout.', enabled: true },
 ];
+
+// Pricing plans (like the reference platform): limits are enforced on the store side, commission feeds the payouts report.
+const PLANS = [
+  { name: 'Free', description: 'Perfect to try things out', price: 0, maxProducts: 25, maxStaff: 3, commissionPercent: 5, order: 1, features: ['Up to 25 products', '3 team accounts', 'Store link on our domain', 'Community support'] },
+  { name: 'Basic', description: 'For growing shops', price: 5000, maxProducts: 500, maxStaff: 10, commissionPercent: 3, order: 2, features: ['Up to 500 products', '10 team accounts', 'Promo codes & flash sales', 'Email support'] },
+  { name: 'Pro', description: 'For serious brands', price: 12000, maxProducts: 0, maxStaff: 0, commissionPercent: 2, isPopular: true, order: 3, features: ['Unlimited products', 'Unlimited team accounts', 'Custom domain', 'Priority support'] },
+];
+async function ensurePlans() {
+  for (const pl of PLANS) await models.Plan.updateOne({ name: pl.name }, { $setOnInsert: pl }, { upsert: true });
+  return models.Plan.findOne({ name: 'Pro' });
+}
 
 async function ensureUser(tenant, { name, email, role, branchId, phone }, hash) {
   const exists = await models.User.findOne({ email });
@@ -111,8 +123,13 @@ async function topUp(tenant, hash) {
     made.push('payment accounts');
   }
 
+  if (!tenant.planId && global.__proPlan) { await models.Tenant.updateOne({ _id: tenant._id }, { $set: { planId: global.__proPlan._id } }); made.push('Pro plan'); }
+
+  // Premium dark storefront for every store (only where no mode is stored yet).
+  if ((await models.Tenant.updateOne({ _id: tenant._id, 'theme.mode': { $exists: false } }, { $set: { 'theme.mode': 'dark' } })).modifiedCount) made.push('dark theme');
+
   // Ordering settings (tax, delivery ETA) and delivery areas.
-  if (!tenant.ordering?.taxPercent && ORDERING[slug]) { await models.Tenant.updateOne({ _id: tenant._id }, { $set: Object.fromEntries(Object.entries(ORDERING[slug]).map(([k, v]) => [`ordering.${k}`, v])) }); made.push('ordering settings'); }
+  if (ORDERING[slug] && (slug === 'fashionhub' ? !tenant.ordering?.etaLabel : !tenant.ordering?.taxPercent)) { await models.Tenant.updateOne({ _id: tenant._id }, { $set: Object.fromEntries(Object.entries(ORDERING[slug]).map(([k, v]) => [`ordering.${k}`, v])) }); made.push('ordering settings'); }
   if (!(await models.ServiceArea.countDocuments({ tenantId: tenant._id }))) {
     const docs = [];
     for (const [city, fee, names] of AREAS[slug] || []) for (const name of names) docs.push({ tenantId: tenant._id, city, name, deliveryFee: fee, branchId: first });
@@ -166,6 +183,8 @@ async function topUp(tenant, hash) {
     if (p.role === R.SA) admin = u;
   }
 
+  const proPlan = await ensurePlans();
+  global.__proPlan = proPlan;
   for (const t of tenants) {
     let tenant = await models.Tenant.findOne({ slug: t.slug });
     if (tenant) console.log(`- ${t.slug}: exists`);
@@ -174,7 +193,7 @@ async function topUp(tenant, hash) {
       ({ tenant } = await createTenant(input, admin, { password: env.seedPassword }));
       await models.User.create({ name: editor.name, email: editor.email, role: R.TE, tenantId: tenant._id, passwordHash: hash, status: 'active' });
       await models.User.create({ name: `${t.name} Manager`, email: `manager@${t.slug}.test`, role: R.TM, tenantId: tenant._id, passwordHash: hash, status: 'active' });
-      await models.Media.insertMany(gallery.map((g, i) => ({ tenantId: tenant._id, url: photo(g, 900), type: 'image/jpeg', isGallery: true, caption: `${t.name} ${i + 1}` })));
+      await models.Media.insertMany(gallery.map((g, i) => ({ tenantId: tenant._id, url: g.startsWith('http') ? g : photo(g, 900), type: 'image/jpeg', isGallery: true, caption: `${t.name} ${i + 1}` })));
       await models.AuditLog.create({ userId: admin._id, tenantId: tenant._id, action: 'tenant.create', details: { slug: t.slug, seeded: true } });
       console.log(`+ ${t.slug}: created`);
     }

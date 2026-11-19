@@ -59,6 +59,7 @@ export default function AllWebsites() {
                   {s.status === 'active' ? <button className="btn sm primary" onClick={() => setView(s)}>Preview</button> : <button className="btn sm" disabled title="Only live websites can be previewed">Preview</button>}
                   {s.status === 'active' && <a className="btn sm" href={`/${s.slug}`} target="_blank" rel="noopener noreferrer">Open ↗</a>}
                   <button className="btn sm" onClick={() => openDashboard(s)}>Dashboard</button>
+                  <Link className="btn sm" href={`/admin/products?store=${s._id}`}>Products</Link>
                   <Link className="btn sm" href={`/admin/tenants/${s._id}`}>Manage</Link>
                 </div>
               </div>

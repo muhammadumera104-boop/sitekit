@@ -2,7 +2,7 @@ const router = require('express').Router();
 const bcrypt = require('bcryptjs');
 const multer = require('multer');
 const { z } = require('zod');
-const { Tenant, User, Branch, MenuCategory, MenuItem, Page, Media, Message, AuditLog, Visit, Session, Promo, Review, Customer, Order } = require('../models');
+const { Tenant, User, Branch, MenuCategory, MenuItem, Page, Media, Message, AuditLog, Visit, Session, Promo, Review, Customer, Order, Plan, Announcement } = require('../models');
 const { authenticate, requirePerm, tenantContext } = require('../middleware/auth');
 const { can, R, TENANT_ROLES, PLATFORM_ROLES, permissionsFor } = require('../config/permissions');
 const { HttpError, wrap, slugify, pageParams, sha256, randomToken } = require('../utils/helpers');
@@ -130,10 +130,22 @@ const itemSchema = z.object({
   optionGroups: z.array(z.object({
     _id: z.string().optional(), name: z.string().trim().min(1, 'Option group name is required').max(60), required: z.boolean().optional(), multiple: z.boolean().optional(),
     min: z.coerce.number().int().min(0).max(30).optional(), max: z.coerce.number().int().min(0).max(30).optional(),
-    options: z.array(z.object({ _id: z.string().optional(), name: z.string().trim().min(1, 'Option name is required').max(60), price: z.coerce.number().min(0).max(1000000).optional() })).min(1, 'Add at least one option').max(40),
+    options: z.array(z.object({ _id: z.string().optional(), name: z.string().trim().min(1, 'Option name is required').max(60), price: z.coerce.number().min(0).max(1000000).optional(), color: z.string().regex(/^#[0-9a-fA-F]{6}$/, 'Use a hex colour like #c9a24b').optional().or(z.literal('')) })).min(1, 'Add at least one option').max(40),
   })).max(10).optional(), // sizes, add-ons...
+  tags: z.array(z.enum(['featured', 'new', 'bestseller'])).max(3).optional(),
 });
+// A plan can cap the number of products / staff accounts (0 = unlimited; no plan = no limit).
+async function assertPlan(req, what) {
+  if (!req.tenant.planId) return;
+  const plan = await Plan.findById(req.tenant.planId).lean();
+  if (!plan) return;
+  const max = what === 'products' ? plan.maxProducts : plan.maxStaff;
+  if (!max) return;
+  const n = what === 'products' ? await MenuItem.countDocuments({ tenantId: req.tenantId }) : await User.countDocuments({ tenantId: req.tenantId });
+  if (n >= max) throw new HttpError(403, `Your ${plan.name} plan allows up to ${max} ${what === 'products' ? 'products' : 'team members'}. Ask the platform team to upgrade your plan.`, 'PLAN_LIMIT');
+}
 router.post('/menu/items', products, wrap(async (req, res) => {
+  await assertPlan(req, 'products');
   const d = itemSchema.parse(req.body);
   const scope = itemScope(req);
   await assertCategory(req, d.categoryId);
@@ -264,6 +276,7 @@ async function resolveBranch(req, role, branchId, current) {
   return id;
 }
 router.post('/users', usersPerm, wrap(async (req, res) => {
+  await assertPlan(req, 'staff');
   const d = tUserSchema.parse(req.body);
   const user = new User({ name: d.name, email: d.email.toLowerCase(), role: d.role, tenantId: req.tenantId, status: d.password ? 'active' : 'invited', phone: d.phone, branchId: await resolveBranch(req, d.role, d.branchId) });
   let inviteLink = null;
@@ -380,6 +393,17 @@ router.get('/customers', requirePerm('customers.view'), wrap(async (req, res) =>
   ]);
   const by = new Map(counts.map((c) => [String(c._id), c]));
   res.json({ items: items.map((c) => ({ ...c, addresses: c.addresses?.length || 0, orders: by.get(String(c._id))?.orders || 0, spent: by.get(String(c._id))?.spent || 0 })), total, page, pages: Math.ceil(total / limit) });
+}));
+
+// Messages from the platform team (shown as banners in the dashboard).
+router.get('/announcements', wrap(async (req, res) => {
+  const now = new Date();
+  const owner = req.user.role === 'tenant_owner' || PLATFORM_ROLES.includes(req.user.role);
+  const items = await Announcement.find({
+    isActive: true, audience: owner ? { $in: ['all', 'owners'] } : 'all',
+    $and: [{ $or: [{ startsAt: null }, { startsAt: { $lte: now } }] }, { $or: [{ endsAt: null }, { endsAt: { $gte: now } }] }],
+  }).sort({ createdAt: -1 }).limit(5).select('title body level').lean();
+  res.json({ items });
 }));
 
 // Branches, orders, POS and inventory.

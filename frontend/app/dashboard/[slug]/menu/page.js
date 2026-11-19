@@ -87,7 +87,7 @@ function CatModal({ cat, slug, onClose, onSaved }) {
 }
 
 function ItemModal({ item, cats, slug, noun, features, branches, isVendor, onClose, onSaved }) {
-  const [f, setF] = useState({ categoryId: item.categoryId, name: item.name || '', description: item.description || '', price: item.price ?? '', image: item.image || '', isAvailable: item.isAvailable !== false, discountPercent: item.discountPercent || 0, stock: item.stock ?? '', branchId: item.branchId || '', optionGroups: item.optionGroups || [] });
+  const [f, setF] = useState({ categoryId: item.categoryId, name: item.name || '', description: item.description || '', price: item.price ?? '', image: item.image || '', isAvailable: item.isAvailable !== false, discountPercent: item.discountPercent || 0, stock: item.stock ?? '', branchId: item.branchId || '', optionGroups: item.optionGroups || [], tags: item.tags || [] });
   const [err, setErr] = useState('');
   const [fe, setFe] = useState({});
   async function save(e) {
@@ -105,6 +105,9 @@ function ItemModal({ item, cats, slug, noun, features, branches, isVendor, onClo
         {features.discounts && <Field label="Discount (%)" type="number" min="0" max="90" step="1" value={f.discountPercent} onChange={(e) => setF({ ...f, discountPercent: e.target.value })} error={fe.discountPercent} hint="Shown as a sale price on the website. 0 = no discount." />}
         {features.inventory && <Field label="Stock" type="number" min="0" step="1" value={f.stock} onChange={(e) => setF({ ...f, stock: e.target.value })} error={fe.stock} hint="Leave empty to not track stock. At 0 the item shows as sold out." />}
         {!isVendor && branches.length > 0 && <Field label="Branch"><select value={f.branchId} onChange={(e) => setF({ ...f, branchId: e.target.value })}><option value="">All branches</option>{branches.map((b) => <option key={b._id} value={b._id}>{b.name}</option>)}</select></Field>}
+        <Field label="Show in home page rows" hint="Featured products, New arrivals and Best sellers rows on the storefront.">
+          <div className="row">{[['featured', 'Featured'], ['new', 'New arrival'], ['bestseller', 'Best seller']].map(([k, l]) => <label key={k}><input type="checkbox" checked={f.tags.includes(k)} onChange={(e) => setF({ ...f, tags: e.target.checked ? [...f.tags, k] : f.tags.filter((x) => x !== k) })} /> {l}</label>)}</div>
+        </Field>
         <OptionEditor groups={f.optionGroups} onChange={(g) => setF({ ...f, optionGroups: g })} />
         <ImageField label="Image" value={f.image} onChange={(v) => setF({ ...f, image: v })} uploadPath="/tenant/media" tenant={slug} />
         <label><input type="checkbox" checked={f.isAvailable} onChange={(e) => setF({ ...f, isAvailable: e.target.checked })} /> Available</label>
@@ -159,6 +162,7 @@ function OptionEditor({ groups, onChange }) {
             <div className="row" key={o._id || j} style={{ flexWrap: 'nowrap', marginBottom: 6 }}>
               <input className="select-sm" style={{ flex: 1 }} placeholder="Choice (Large, Extra cheese…)" value={o.name} onChange={(e) => updOpt(i, j, { name: e.target.value })} aria-label="Choice name" />
               <input className="select-sm" style={{ width: 90 }} type="number" min="0" placeholder="+ Rs." value={o.price} onChange={(e) => updOpt(i, j, { price: e.target.value })} aria-label="Extra price" />
+              <input className="select-sm" style={{ width: 92 }} placeholder="#colour" value={o.color || ''} onChange={(e) => updOpt(i, j, { color: e.target.value })} aria-label="Colour swatch (hex, optional)" title="Optional swatch colour, e.g. #111111" />
               <button type="button" className="btn sm" onClick={() => upd(i, { options: g.options.filter((_, k) => k !== j) })} aria-label="Remove choice">✕</button>
             </div>
           ))}

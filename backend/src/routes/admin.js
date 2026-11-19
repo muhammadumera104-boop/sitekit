@@ -315,12 +315,22 @@ router.get('/audit', requirePerm('audit.view'), wrap(async (req, res) => {
   const { page, limit, skip } = pageParams(req.query);
   const q = {};
   if (req.query.action) q.action = String(req.query.action);
+  if (req.query.q) q.action = new RegExp(escapeRegex(String(req.query.q)), 'i'); // search any part of the action name
   if (req.query.tenantId) q.tenantId = req.query.tenantId;
+  if (req.query.userId && /^[a-f0-9]{24}$/i.test(String(req.query.userId))) q.userId = req.query.userId;
+  if (req.query.from || req.query.to) {
+    q.createdAt = {};
+    if (req.query.from) q.createdAt.$gte = new Date(`${req.query.from}T00:00:00`);
+    if (req.query.to) q.createdAt.$lte = new Date(`${req.query.to}T23:59:59`);
+  }
   const [items, total] = await Promise.all([
     AuditLog.find(q).sort({ createdAt: -1 }).skip(skip).limit(limit).populate('userId', 'name email role').populate('tenantId', 'name slug').lean(),
     AuditLog.countDocuments(q),
   ]);
   res.json({ items, total, page, pages: Math.ceil(total / limit) });
 }));
+
+// Platform-wide views (overview, products, orders, customers, reviews, coupons, payments, payouts, plans, announcements, settings).
+router.use(require('./adminExtra'));
 
 module.exports = router;

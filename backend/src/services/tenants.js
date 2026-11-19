@@ -17,7 +17,10 @@ exports.tenantInput = z.object({
   status: z.enum(['draft', 'active']).optional(),
   owner: z.object({ name: z.string().trim().min(2, 'Owner name is required'), email: z.string().email('Valid owner email required'), phone: str }),
   branding: z.object({ logo: str, favicon: str, tagline: str }).partial().optional(),
-  theme: z.object({ primary: color, secondary: color, fontHeading: str, fontBody: str, radius: str }).partial().optional(),
+  theme: z.object({ primary: color, secondary: color, fontHeading: str, fontBody: str, radius: str, mode: z.enum(['dark', 'light']) }).partial().optional(),
+  announcement: z.object({ text: str, enabled: z.boolean() }).partial().optional(),
+  slides: z.array(z.object({ eyebrow: str, title: str, subtitle: str, image: str, cta: str, link: str })).max(6).optional(),
+  flashSale: z.object({ enabled: z.boolean(), title: str, endsAt: z.string().nullable() }).partial().optional(),
   hero: z.object({ title: str, subtitle: str, image: str }).partial().optional(),
   about: z.string().max(10000).optional(),
   contact: z.object({ phone: str, email: str, address: str, map: str }).partial().optional(),
@@ -89,6 +92,7 @@ exports.createTenant = async (input, createdBy, { password, sendInvite = true } 
       await MenuItem.insertMany(c.items.map((i, idx) => ({
         tenantId: tenant._id, categoryId: cat._id, name: i.name, description: i.description, price: i.price || 0,
         image: i.image, isAvailable: i.isAvailable !== false, order: idx,
+        discountPercent: i.discountPercent || 0, stock: i.stock ?? null, tags: i.tags || [], optionGroups: i.optionGroups || [],
       })));
     }
   }

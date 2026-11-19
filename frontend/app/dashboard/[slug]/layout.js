@@ -7,12 +7,18 @@ import { Badge, Loading, useLoad } from '@/components/ui';
 import { api } from '@/lib/api';
 import { useTabBrand } from '@/lib/useTabBrand';
 import { useOrderAlerts } from '@/lib/useOrderAlerts';
+import '../../admin.css';
 import { useAuth } from '@/lib/auth';
 
 function Inner({ slug, children }) {
   const { data, error, loading, reload } = useLoad(() => api('/tenant/me', { tenant: slug }), [slug]);
   useTabBrand(data ? `${data.tenant.name} — Dashboard` : 'Dashboard', data?.tenant.logo);
   const { user } = useAuth();
+  // Messages from the platform team, dismissible per browser.
+  const ann = useLoad(() => api('/tenant/announcements', { tenant: slug }).catch(() => ({ items: [] })), [slug]);
+  const [hidden, setHidden] = useState([]);
+  useEffect(() => { try { setHidden(JSON.parse(localStorage.getItem('ann-hidden') || '[]')); } catch { /* ignore */ } }, []);
+  const dismiss = (id) => { const n = [...hidden, id]; setHidden(n); try { localStorage.setItem('ann-hidden', JSON.stringify(n)); } catch { /* ignore */ } };
   const alerts = useOrderAlerts(slug, !!user?.permissions.includes('orders.view'), data?.tenant.name);
   if (loading && !data) return <Loading />;
   if (error) return <Forbidden message={error} />;
@@ -42,7 +48,11 @@ function Inner({ slug, children }) {
     { href: `${base}/users`, label: 'Users', icon: '👥', perm: 'tenantUsers.manage' },
     { href: `${base}/audit`, label: 'Audit log', icon: '📜', perm: 'audit.view' },
   ].filter((n) => !n.feature || data.features?.[n.feature]);
-  const banner = data.impersonating && <div className="imp-banner">⚠ You are viewing <strong>{data.tenant.name}</strong>&apos;s dashboard as platform support. This session is recorded in the audit log.</div>;
+  const notices = (ann.data?.items || []).filter((a) => !hidden.includes(a._id)).map((a) => (
+    <div className={`announce-bar ${a.level}`} key={a._id} role="status"><span>📣 <strong>{a.title}</strong>{a.body ? ` — ${a.body}` : ''}</span><button className="btn ghost sm" onClick={() => dismiss(a._id)} aria-label="Dismiss">✕</button></div>
+  ));
+  const imp = data.impersonating && <div className="imp-banner">⚠ You are viewing <strong>{data.tenant.name}</strong>&apos;s dashboard as platform support. This session is recorded in the audit log.</div>;
+  const banner = imp || notices.length ? <>{imp}{notices}</> : null;
   return (
     <TenantProvider value={{ slug, tenant: data.tenant, features: data.features || {}, branchId: data.branchId, impersonating: data.impersonating, reload }}>
       <div style={{ '--brand': data.tenant.primary || undefined, display: 'contents' }}><Shell title={<span>{data.tenant.name} <Badge>{data.tenant.status}</Badge></span>} brand={data.tenant.name} logo={data.tenant.logo} nav={nav} banner={banner}>{children}</Shell></div>

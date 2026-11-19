@@ -113,7 +113,8 @@ async function placeOrder(lines, opts) {
     if (promo) { await reservePromo(promo); promoReserved = true; }
   } catch (e) { await rollback(); throw e; }
 
-  const fee = orderType === 'delivery' && area ? Number(area.deliveryFee) || 0 : 0;
+  const over = Number(tenant.ordering?.freeDeliveryOver) || 0;
+  const fee = orderType === 'delivery' && area && !(over > 0 && itemsTotal - promoOff >= over) ? Number(area.deliveryFee) || 0 : 0;
   const t = computeTotals(itemsTotal - promoOff, tenant.ordering, fee);
   try {
     return await Order.create({

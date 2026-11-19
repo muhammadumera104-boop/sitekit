@@ -174,7 +174,7 @@ test('live rider location is shared with the customer only while on the way', as
   const o = (await call('/tenant/orders?source=online', { token: owner })).data.items.find((x) => x.number === n);
   for (const st of ['confirmed', 'preparing', 'ready']) await call(`/tenant/orders/${o._id}`, { method: 'PATCH', token: owner, body: { status: st } });
   const rider = await staff('rider@kababjees.test', 'rider');
-  const riders = (await call('/tenant/riders', { token: owner })).data.riders;
+  const riders = (await call('/tenant/riders', { token: owner })).data.riders.sort((a, b) => (b.name === 'Kababjees Rider') - (a.name === 'Kababjees Rider'));
   await call(`/tenant/orders/${o._id}`, { method: 'PATCH', token: owner, body: { riderId: riders[0]._id } });
   assert.equal((await call(`/tenant/deliveries/${o._id}/location`, { method: 'PATCH', token: rider, body: { lat: 24.82, lng: 67.03 } })).status, 404, 'not on the way yet');
   await call(`/tenant/deliveries/${o._id}`, { method: 'PATCH', token: rider, body: { status: 'out_for_delivery' } });

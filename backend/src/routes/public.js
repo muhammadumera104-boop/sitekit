@@ -17,8 +17,20 @@ const { sendMail } = require('../services/email');
 const orderLimiter = rateLimit({ windowMs: 10 * 60 * 1000, limit: Number(process.env.ORDER_RATE_LIMIT || 20), standardHeaders: true, legacyHeaders: false, message: { message: 'Too many orders, please try later' } });
 const contactLimiter = rateLimit({ windowMs: 10 * 60 * 1000, limit: 10, standardHeaders: true, legacyHeaders: false, message: { message: 'Too many messages, please try later' } });
 
+// Platform maintenance switch (Admin -> Platform settings). Cached for a few seconds so it costs almost nothing.
+let maint = { at: 0, v: null };
+async function maintenanceNotice() {
+  if (Date.now() - maint.at > 5000) {
+    const doc = await require('../models').PlatformSetting.findOne({ key: 'settings' }).lean();
+    maint = { at: Date.now(), v: doc?.value?.maintenanceMode ? (doc.value.maintenanceMessage || 'We are doing some quick maintenance and will be back shortly.') : null };
+  }
+  return maint.v;
+}
+
 // Resolver kept as its own function so path-based lookup can later become subdomain/custom-domain lookup.
 async function resolveTenant(slug) {
+  const notice = await maintenanceNotice();
+  if (notice) throw new HttpError(503, notice, 'MAINTENANCE');
   const tenant = await Tenant.findOne({ slug: String(slug).toLowerCase() });
   if (!tenant) {
     const moved = await Tenant.findOne({ previousSlugs: String(slug).toLowerCase(), status: { $nin: ['deleted'] } }).select('slug');
@@ -37,6 +49,13 @@ router.get('/tenants/:slug/brand', wrap(async (req, res) => {
   if (!t || t.status === 'deleted') throw new HttpError(404, 'Website not found', 'NOT_FOUND');
   if (t.status === 'suspended') throw new HttpError(403, 'This website is currently unavailable', 'SUSPENDED');
   res.json({ name: t.name, slug: t.slug, logo: t.branding?.logo, tagline: t.branding?.tagline, primary: t.theme?.primary, secondary: t.theme?.secondary });
+}));
+
+// Platform name / support / maintenance notice (no secrets).
+router.get('/platform', wrap(async (_req, res) => {
+  const doc = await require('../models').PlatformSetting.findOne({ key: 'settings' }).lean();
+  const v = doc?.value || {};
+  res.json({ name: v.platformName || 'SiteForge', supportEmail: v.supportEmail || '', supportPhone: v.supportPhone || '', maintenance: v.maintenanceMode ? (v.maintenanceMessage || 'Maintenance in progress') : null });
 }));
 
 router.get('/tenants/:slug', wrap(async (req, res) => {
@@ -219,6 +238,16 @@ router.post('/tenants/:slug/reviews', trackLimiter, wrap(async (req, res) => {
   await Review.create({ tenantId: tenant._id, orderId: order._id, orderNumber: order.number, name: order.customer?.name, rating: d.rating, comment: d.comment });
   order.reviewed = true; await order.save();
   res.status(201).json({ message: 'Thank you for your feedback!' });
+}));
+
+// Newsletter sign-up (stored with the other messages as type "newsletter"; one entry per email).
+router.post('/tenants/:slug/subscribe', contactLimiter, wrap(async (req, res) => {
+  const tenant = await resolveTenant(req.params.slug);
+  const { email } = z.object({ email: z.string().trim().toLowerCase().email('Enter a valid email address') }).parse(req.body);
+  if (!(await Message.exists({ tenantId: tenant._id, type: 'newsletter', email }))) {
+    await Message.create({ tenantId: tenant._id, type: 'newsletter', name: email, email, message: 'Newsletter subscriber' });
+  }
+  res.status(201).json({ message: 'Thank you for subscribing!' });
 }));
 
 // Complaints (stored with the other messages, flagged as a complaint).

@@ -7,6 +7,12 @@ const hours = (open, close) => ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'F
 const mark = (text, bg, fg = '#fff', size = 64) => `data:image/svg+xml;utf8,${encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' width='120' height='120'><rect width='120' height='120' rx='28' fill='${bg}'/><text x='60' y='${60 + size / 3}' font-size='${size}' font-family='Georgia' font-weight='bold' text-anchor='middle' fill='${fg}'>${text}</text></svg>`)}`;
 const item = (name, description, price, key) => ({ name, description, price, image: key ? photo(key, 700) : '' });
 
+// Fashion helpers: Unsplash photos (free licence), size / colour option groups, product builder.
+const un = (id, w = 900, h = 1100) => `https://images.unsplash.com/photo-${id}?w=${w}&h=${h}&q=75&auto=format&fit=crop`;
+const SIZE = (sizes, name = 'Size') => ({ name, required: true, multiple: false, options: sizes.map((n) => ({ name: n, price: 0 })) });
+const COLOR = (list, name = 'Color') => ({ name, required: true, multiple: false, options: list.map(([n, c]) => ({ name: n, price: 0, color: c })) });
+const fi = (name, description, price, id, { off = 0, tags = [], groups = [] } = {}) => ({ name, description, price, image: un(id), discountPercent: off, tags, optionGroups: groups, stock: 25 });
+
 module.exports = [
   {
     name: 'Kababjees', slug: 'kababjees', templateKey: 'restaurant', businessType: 'restaurant', status: 'active',
@@ -89,6 +95,51 @@ module.exports = [
       { title: 'Areas', body: 'We are now live in Karachi, Rawalpindi and Lahore.' },
     ],
     gallery: ['km1', 'km2', 'km3', 'km4'],
+  },
+  {
+    // Fashion hub: premium dark storefront (gold accent, serif headings), sizes + colours, flash sale, wishlist.
+    name: 'Fashion Hub', slug: 'fashionhub', templateKey: 'store', businessType: 'fashion', status: 'active',
+    owner: { name: 'Fashion Hub Owner', email: 'owner@fashionhub.test' }, editor: { name: 'Fashion Hub Editor', email: 'editor@fashionhub.test' },
+    branding: { logo: mark('FH', '#c9a24b', '#09090b', 54), tagline: 'Quiet luxury, delivered to your door' },
+    theme: { primary: '#c9a24b', secondary: '#09090b', mode: 'dark', fontHeading: 'var(--font-playfair), Georgia, serif', fontBody: 'var(--font-jakarta), system-ui, sans-serif', radius: '14px' },
+    hero: { title: 'The Autumn Edit', subtitle: 'Layered looks, rich textures, quiet luxury.', image: un('1496747611176-843222e1e57c', 1800, 1000) },
+    slides: [
+      { eyebrow: 'FASHION HUB', title: 'The Autumn Edit', subtitle: 'Layered looks, rich textures, quiet luxury.', image: un('1496747611176-843222e1e57c', 1800, 1000), cta: 'Shop the edit', link: 'products' },
+      { eyebrow: 'NEW ARRIVALS', title: 'Sharp Tailoring', subtitle: 'Oxford shirts, chinos and suede bombers — cut to move with you.', image: un('1591047139829-d91aecb6caea', 1800, 1000), cta: 'Shop menswear', link: 'products' },
+      { eyebrow: 'FLASH SALE', title: 'Up to 24% off', subtitle: 'Limited-time deals on our best sellers. Ends soon.', image: un('1584917865442-de89df76afd3', 1800, 1000), cta: 'See the deals', link: 'products?sale=1' },
+    ],
+    announcement: { text: 'Free delivery on orders over Rs. 5,000 — use code WELCOME10 for 10% off', enabled: true },
+    flashSale: { enabled: true, title: 'Limited-time deals', endsAt: new Date(Date.now() + 12 * 864e5) },
+    about: 'Fashion Hub is a modern fashion house for people who value quality over noise: tailored menswear, effortless womenswear, hand-finished leather and timeless accessories.\n\nEvery piece is chosen for fabric, fit and longevity. Order online, get it delivered nationwide, and return or exchange within 14 days if it is not perfect.',
+    contact: { phone: '021-111-000-111', email: 'hello@fashionhub.example', address: 'Zamzama Boulevard, DHA Phase 5, Karachi', map: 'https://maps.google.com/?q=Zamzama+Boulevard+Karachi' },
+    socials: { instagram: 'https://www.instagram.com/', facebook: 'https://www.facebook.com/', whatsapp: '+92 300 0000000' },
+    openingHours: hours('11:00', '22:00'),
+    seo: { title: 'Fashion Hub | Premium menswear, womenswear, shoes & accessories', description: 'Shop tailored menswear, womenswear, leather shoes and accessories. Nationwide delivery and easy 14-day returns.', ogImage: un('1496747611176-843222e1e57c', 1200, 630) },
+    categories: [
+      { name: 'Men', items: [
+        fi('Classic Oxford Shirt', 'Crisp cotton oxford with a button-down collar. Easy to dress up or down.', 5900, '1596755094514-f87e34085b2c', { off: 24, tags: ['featured', 'new', 'bestseller'], groups: [SIZE(['S', 'M', 'L', 'XL', 'XXL']), COLOR([['White', '#f5f5f5'], ['Sky Blue', '#8fb8de'], ['Navy', '#1f2a44']])] }),
+        fi('Slim Fit Chinos', 'Stretch-cotton chinos with a clean, tapered leg.', 6900, '1473966968600-fa801b869a1a', { tags: ['bestseller'], groups: [SIZE(['30', '32', '34', '36', '38']), COLOR([['Khaki', '#c3a98a'], ['Navy', '#1f2a44'], ['Olive', '#6b705c']])] }),
+        fi('Suede Bomber Jacket', 'Soft suede bomber with a ribbed collar and a satin lining.', 22000, '1591047139829-d91aecb6caea', { off: 20, tags: ['featured', 'new'], groups: [SIZE(['S', 'M', 'L', 'XL']), COLOR([['Tan', '#b08968'], ['Black', '#111111']])] }),
+        fi('Merino Wool Sweater', '100% merino wool crew neck. Warm, light and naturally breathable.', 12000, '1620799140408-edc6dcb6d633', { off: 20, tags: ['featured', 'bestseller'], groups: [SIZE(['S', 'M', 'L', 'XL']), COLOR([['Charcoal', '#3b3b3f'], ['Camel', '#c19a6b'], ['Forest', '#2f4a3a']])] }),
+      ] },
+      { name: 'Women', items: [
+        fi('Silk Wrap Dress', 'Fluid silk wrap dress with a flattering tie waist.', 18900, '1496747611176-843222e1e57c', { tags: ['featured', 'new'], groups: [SIZE(['XS', 'S', 'M', 'L', 'XL']), COLOR([['Emerald', '#0f6b55'], ['Black', '#111111'], ['Champagne', '#e7d3b5']])] }),
+        fi('High-Rise Denim', 'Rigid high-rise denim with a straight leg. Gets better with every wash.', 9500, '1624378439575-d8705ad7ae80', { tags: ['new', 'bestseller'], groups: [SIZE(['26', '28', '30', '32', '34'])] }),
+      ] },
+      { name: 'Shoes', items: [
+        fi('Minimal White Sneakers', 'Clean leather sneakers with a cushioned insole. Goes with everything.', 11000, '1549298916-b41d501d3772', { off: 20, tags: ['new', 'bestseller'], groups: [SIZE(['39', '40', '41', '42', '43', '44', '45'])] }),
+        fi('Leather Chelsea Boots', 'Full-grain leather Chelsea boots with a stacked heel and elastic gussets.', 17500, '1608256246200-53e635b5b65f', { tags: ['featured', 'new', 'bestseller'], groups: [SIZE(['39', '40', '41', '42', '43', '44', '45']), COLOR([['Black', '#111111'], ['Brown', '#5b3a29']])] }),
+      ] },
+      { name: 'Accessories', items: [
+        fi('Minimal Smart Watch', 'Slim smartwatch with heart-rate, sleep tracking and a 7-day battery.', 17900, '1523275335684-37898b6baf30', { off: 17, tags: ['featured', 'new'], groups: [COLOR([['Midnight', '#14151a'], ['Silver', '#c0c2c9'], ['Rose gold', '#b76e79']], 'Strap colour')] }),
+        fi('Leather Handbag', 'Structured leather handbag with a suede-lined interior.', 24500, '1584917865442-de89df76afd3', { tags: ['new', 'bestseller'], groups: [COLOR([['Black', '#111111'], ['Tan', '#b08968'], ['Burgundy', '#6d1f2c']])] }),
+      ] },
+    ],
+    pages: [
+      { title: 'Size Guide', body: 'Not sure about your size? Measure your chest, waist and hips with a soft tape and compare with the size chart on each product.\n\nBetween two sizes? Choose the larger size for a relaxed fit, the smaller for a closer fit.' },
+      { title: 'Returns & Exchange', body: 'Not perfect? Return or exchange within 14 days of delivery. Items must be unworn with tags attached.\n\nMessage us on WhatsApp with your order number and we will arrange a free pickup.' },
+    ],
+    gallery: [un('1496747611176-843222e1e57c', 900, 700), un('1591047139829-d91aecb6caea', 900, 700), un('1584917865442-de89df76afd3', 900, 700), un('1620799140408-edc6dcb6d633', 900, 700)],
   },
 ];
 module.exports.photo = photo;

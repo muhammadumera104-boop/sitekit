@@ -22,7 +22,11 @@ const Tenant = mongoose.model('Tenant', new Schema({
     fontHeading: { type: String, default: 'var(--font-outfit), system-ui, sans-serif' },
     fontBody: { type: String, default: 'var(--font-jakarta), system-ui, sans-serif' },
     radius: { type: String, default: '10px' },
+    mode: { type: String, enum: ['dark', 'light'], default: 'dark' }, // premium dark storefront by default
   },
+  announcement: { text: String, enabled: { type: Boolean, default: true } },
+  slides: [{ eyebrow: String, title: String, subtitle: String, image: String, cta: String, link: String, _id: false }],
+  flashSale: { enabled: { type: Boolean, default: false }, title: String, endsAt: Date },
   branding: { logo: String, favicon: String, tagline: String },
   hero: { title: String, subtitle: String, image: String },
   about: { type: String, default: '' },
@@ -37,12 +41,15 @@ const Tenant = mongoose.model('Tenant', new Schema({
   },
   seo: { title: String, description: String, ogImage: String },
   features: { type: Schema.Types.Mixed, default: {} },
+  planId: { type: oid, ref: 'Plan', default: null },
   ordering: {
     taxPercent: { type: Number, default: 0, min: 0, max: 50 },
     taxInclusive: { type: Boolean, default: true }, // listed prices already include tax
     taxLabel: { type: String, default: 'Tax' },
     minOrder: { type: Number, default: 0, min: 0 },
     etaMinutes: { type: Number, default: 45, min: 5, max: 240 },
+    etaLabel: String, // e.g. "2-4 days" for shipped goods (overrides the minutes)
+    freeDeliveryOver: { type: Number, default: 0, min: 0 }, // free delivery above this order value (0 = off)
     payments: { type: [String], default: ['cod'] },
     // Manual online payment: the customer sends money to one of these accounts and enters the transaction id; staff verify it.
     paymentAccounts: [{ method: { type: String, enum: ['jazzcash', 'easypaisa', 'bank'] }, accountName: String, accountNumber: String, instructions: String, enabled: { type: Boolean, default: true }, _id: false }],
@@ -113,7 +120,8 @@ const MenuItem = mongoose.model('MenuItem', new Schema({
   branchId: { type: oid, ref: 'Branch', default: null, index: true }, // null = all branches
   // Sizes, add-ons, etc.: { name: 'Size', required, multiple, min, max, options: [{ name, price }] }
   optionGroups: [{ name: { type: String, required: true }, required: { type: Boolean, default: false }, multiple: { type: Boolean, default: false }, min: { type: Number, default: 0 }, max: { type: Number, default: 0 },
-    options: [{ name: { type: String, required: true }, price: { type: Number, default: 0, min: 0 } }] }],
+    options: [{ name: { type: String, required: true }, price: { type: Number, default: 0, min: 0 }, color: String }] }],
+  tags: [{ type: String, enum: ['featured', 'new', 'bestseller'] }],
   order: { type: Number, default: 0 },
 }, opts));
 
@@ -123,7 +131,7 @@ const Media = mongoose.model('Media', new Schema({
 }, opts));
 
 const Message = mongoose.model('Message', new Schema({
-  tenantId, type: { type: String, enum: ['contact', 'complaint'], default: 'contact' }, orderNumber: String,
+  tenantId, type: { type: String, enum: ['contact', 'complaint', 'newsletter'], default: 'contact' }, orderNumber: String,
   name: { type: String, required: true }, email: String, phone: String, message: { type: String, required: true },
   status: { type: String, enum: ['new', 'read', 'archived'], default: 'new' },
 }, opts));
@@ -207,6 +215,28 @@ const Review = mongoose.model('Review', new Schema({
   rating: { type: Number, min: 1, max: 5, required: true }, comment: String, reply: String, isPublished: { type: Boolean, default: true },
 }, opts));
 
+const Plan = mongoose.model('Plan', new Schema({
+  name: { type: String, required: true, trim: true }, description: String,
+  price: { type: Number, default: 0, min: 0 }, interval: { type: String, enum: ['month', 'year'], default: 'month' },
+  maxProducts: { type: Number, default: 0, min: 0 }, maxStaff: { type: Number, default: 0, min: 0 }, // 0 = unlimited
+  commissionPercent: { type: Number, default: 0, min: 0, max: 50 }, features: [String],
+  isPopular: { type: Boolean, default: false }, isActive: { type: Boolean, default: true }, order: { type: Number, default: 0 },
+}, opts));
+
+const Payout = mongoose.model('Payout', new Schema({
+  tenantId, amount: { type: Number, required: true, min: 1 },
+  method: { type: String, enum: ['bank', 'jazzcash', 'easypaisa', 'cash', 'other'], default: 'bank' },
+  reference: String, note: String, status: { type: String, enum: ['pending', 'paid'], default: 'paid', index: true },
+  paidAt: Date, createdBy: { type: oid, ref: 'User' },
+}, opts));
+
+const Announcement = mongoose.model('Announcement', new Schema({
+  title: { type: String, required: true, trim: true }, body: String,
+  level: { type: String, enum: ['info', 'success', 'warning'], default: 'info' },
+  audience: { type: String, enum: ['all', 'owners'], default: 'all' },
+  startsAt: Date, endsAt: Date, isActive: { type: Boolean, default: true }, createdBy: { type: oid, ref: 'User' },
+}, opts));
+
 const PlatformSetting = mongoose.model('PlatformSetting', new Schema({ key: { type: String, unique: true }, value: Schema.Types.Mixed }, opts));
 
-module.exports = { Customer, Promo, Review, ServiceArea, Branch, Order, PlatformSetting, Tenant, User, Role, Template, Page, MenuCategory, MenuItem, Media, Message, AuditLog, Session, Visit };
+module.exports = { Plan, Payout, Announcement, Customer, Promo, Review, ServiceArea, Branch, Order, PlatformSetting, Tenant, User, Role, Template, Page, MenuCategory, MenuItem, Media, Message, AuditLog, Session, Visit };

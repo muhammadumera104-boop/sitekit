@@ -40,6 +40,8 @@ export default function TenantDetail() {
         <div className="row">{t.branding?.logo && <img className="logo-sm" src={t.branding.logo} alt="" />}<h1>{t.name}</h1><Badge>{t.status}</Badge></div>
         <div className="row">
           {t.status === 'active' && <a className="btn" href={`/${t.slug}`} target="_blank" rel="noopener noreferrer">Open live site ↗</a>}
+          <Link className="btn" href={`/admin/products?store=${t._id}`}>🛍️ Products ({stats.items})</Link>
+          <Link className="btn" href={`/admin/orders?store=${t._id}`}>🧾 Orders</Link>
           {t.status !== 'deleted' && <button className="btn" onClick={impersonate}>Open tenant dashboard</button>}
         </div>
       </div>

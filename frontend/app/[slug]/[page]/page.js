@@ -24,7 +24,7 @@ export default async function TenantPage({ params }) {
   if (error === 'MOVED') permanentRedirect(`/${message}/${params.page}`);
   if (error === 'NOT_FOUND') notFound();
   if (!site) return <Unavailable code={error} />;
-  const builtin = ['menu', 'products', 'about', 'gallery', 'contact', 'checkout', 'track', 'complaint', 'locations', 'account'];
+  const builtin = ['menu', 'products', 'about', 'gallery', 'contact', 'checkout', 'track', 'complaint', 'locations', 'account', 'wishlist'];
   if (!builtin.includes(params.page) && !site.pages.some((p) => p.slug === params.page)) notFound();
   return <><SiteView site={site} page={params.page} /><VisitBeacon slug={params.slug} path={`/${params.page}`} /></>;
 }

@@ -27,7 +27,7 @@ export default function Home() {
       <section className="lp-hero">
         <div className="lp-copy">
           <span className="lp-pill">Multi-store ordering platform</span>
-          <h1>One platform. Every store online.</h1>
+          <h1>One platform. Every <em>premium</em> store online.</h1>
           <p>Launch branded websites with delivery, POS, riders and payments. Manage everything from a single admin portal.</p>
           <div className="lp-cta">
             <Link className="btn primary lg" href="/login">Open admin portal →</Link>

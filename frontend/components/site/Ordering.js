@@ -39,6 +39,7 @@ export function OrderingProvider({ slug, menuSlug = 'menu', menu, features = {},
   const [orderType, setOrderType] = useState('delivery');
   const [customer, setCustomer] = useState(null);
   const [ctoken, setCtoken] = useState(null);
+  const [wish, setWish] = useState([]);
   const onCheckout = /\/checkout\/?$/.test(usePathname() || '');
 
   useEffect(() => {
@@ -49,8 +50,10 @@ export function OrderingProvider({ slug, menuSlug = 'menu', menu, features = {},
     const raw = read(`cart3:${slug}`, null) || {};
     setCart(raw);
     setPromoState(read(`promo:${slug}`, null));
+    setWish(read(`wish:${slug}`, []));
     setReady(true);
-    if (locOn && !valid && !preview && features.cart) setPickerOpen(true);
+    // Food delivery asks for the area up front; shipped goods (e.g. fashion, "2-4 days") only ask at checkout.
+    if (locOn && !valid && !preview && features.cart && !ordering.etaLabel) setPickerOpen(true);
     const t = read(`ctoken:${slug}`, null);
     if (t) {
       setCtoken(t);
@@ -86,7 +89,10 @@ export function OrderingProvider({ slug, menuSlug = 'menu', menu, features = {},
   const saved = lines.reduce((s, l) => s + l.qty * (l.listUnit - l.unit), 0);
   const promoOff = promoDiscount(promo, subtotal);
   const itemsTotal = subtotal - promoOff;
-  const fee = orderType === 'delivery' && area ? area.deliveryFee : 0;
+  // Free delivery above a threshold (0 = off).
+  const freeOver = Number(ordering.freeDeliveryOver) || 0;
+  const freeDelivery = freeOver > 0 && itemsTotal >= freeOver;
+  const fee = orderType === 'delivery' && area && !freeDelivery ? area.deliveryFee : 0;
   const totals = computeTotals(itemsTotal, ordering, fee);
   const minOrder = orderType === 'delivery' ? Math.max(area?.minOrder || 0, ordering.minOrder || 0) : 0;
 
@@ -122,11 +128,12 @@ export function OrderingProvider({ slug, menuSlug = 'menu', menu, features = {},
     setCart(next); setDrawer(true);
   };
   const clear = () => { setCart({}); setPromo(null); };
+  const toggleWish = (id) => setWish((w) => { const n = w.includes(id) ? w.filter((x) => x !== id) : [...w, id]; write(`wish:${slug}`, n); return n; });
 
   const value = {
     slug, menuSlug, features, ordering, locations, preview, locOn, loc, area, setLoc, openLocation: () => setPickerOpen(true), ready,
     cart, lines, count, subtotal, itemsTotal, saved, promo, setPromo, promoOff, totals, minOrder, add, addToLine, changeQty, setNote, clear, reorder,
-    orderType, setOrderType, customer, ctoken, signIn, signOut, setCustomer,
+    orderType, setOrderType, customer, ctoken, signIn, signOut, setCustomer, wish, toggleWish, freeOver, freeDelivery,
     openCart: () => setDrawer(true), closeCart: () => setDrawer(false), cartOn: !!features.cart,
   };
   return (
@@ -217,6 +224,7 @@ export function CartDrawer({ open, onClose }) {
             <div className="sum"><span>Delivery fee</span><span>{area ? (totals.deliveryFee ? money(totals.deliveryFee) : 'Free') : '—'}</span></div>
             {saved > 0 && <div className="sum save"><span>You save</span><span>{money(saved)}</span></div>}
             <div className="sum grand"><span>Grand total</span><span>{money(totals.total)}</span></div>
+            {o.freeOver > 0 && <div className="free-bar"><div className="bar"><i style={{ width: `${Math.min(100, (o.itemsTotal / o.freeOver) * 100)}%` }} /></div><small>{o.freeDelivery ? '🎉 You unlocked free delivery!' : `Add ${money(o.freeOver - o.itemsTotal)} more for free delivery`}</small></div>}
             {short && <div className="alert error" style={{ marginTop: 8 }}>Minimum order is {money(minOrder)} — add {money(minOrder - o.itemsTotal)} more.</div>}
             {preview ? <div className="alert info" style={{ marginTop: 8 }}>Preview mode</div>
               : <Link className={`cta co-btn ${short ? 'off' : ''}`} href={short ? '#' : `/${slug}/checkout`} onClick={(e) => { if (short) e.preventDefault(); else onClose(); }}>Checkout →</Link>}

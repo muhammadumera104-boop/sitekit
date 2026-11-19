@@ -227,7 +227,7 @@ router.get('/ordering', wrap(async (req, res) => res.json({ ordering: req.tenant
 router.put('/ordering', areas, wrap(async (req, res) => {
   const d = z.object({
     taxPercent: z.coerce.number().min(0).max(50), taxInclusive: z.boolean(), taxLabel: z.string().trim().max(20),
-    minOrder: z.coerce.number().min(0), etaMinutes: z.coerce.number().int().min(5).max(240),
+    minOrder: z.coerce.number().min(0), etaMinutes: z.coerce.number().int().min(5).max(240), etaLabel: z.string().trim().max(30), freeDeliveryOver: z.coerce.number().min(0),
     paymentAccounts: z.array(z.object({ method: z.enum(['jazzcash', 'easypaisa', 'bank']), accountName: z.string().trim().max(80).optional(), accountNumber: z.string().trim().max(60).optional(), instructions: z.string().trim().max(300).optional(), enabled: z.boolean().optional() })).max(6),
   }).partial().parse(req.body);
   for (const [k, v] of Object.entries(d)) req.tenant.set(`ordering.${k}`, v);

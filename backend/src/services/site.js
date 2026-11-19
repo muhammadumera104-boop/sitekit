@@ -6,6 +6,9 @@ const publicTenant = (t) => ({
   id: t._id, name: t.name, slug: t.slug, businessType: t.businessType, status: t.status,
   templateKey: t.templateKey, theme: t.theme, branding: t.branding, hero: t.hero, about: t.about,
   contact: t.contact, socials: t.socials, openingHours: t.openingHours, sections: t.sections, seo: t.seo,
+  announcement: t.announcement?.enabled !== false && t.announcement?.text ? { text: t.announcement.text } : null,
+  slides: (t.slides || []).filter((s) => s.title || s.image).map((s) => ({ eyebrow: s.eyebrow, title: s.title, subtitle: s.subtitle, image: s.image, cta: s.cta, link: s.link })),
+  flashSale: t.flashSale?.enabled && t.flashSale.endsAt && new Date(t.flashSale.endsAt) > new Date() ? { title: t.flashSale.title || 'Flash sale', endsAt: t.flashSale.endsAt } : null,
 });
 
 // Public view of an item. Honors the discounts / inventory feature toggles.
@@ -13,13 +16,13 @@ const publicItem = (i, f) => {
   const tracked = f.inventory && i.stock !== null && i.stock !== undefined;
   const pct = f.discounts ? i.discountPercent || 0 : 0;
   return {
-    id: i._id, name: i.name, description: i.description, price: i.price, image: i.image,
+    id: i._id, name: i.name, description: i.description, price: i.price, image: i.image, tags: i.tags || [],
     discountPercent: pct, salePrice: unitPrice(i.price, pct, f.discounts),
     isAvailable: i.isAvailable && (!tracked || i.stock > 0),
     lowStock: tracked && i.stock > 0 && i.stock <= 5 ? i.stock : null,
     optionGroups: (i.optionGroups || []).map((g) => ({
       id: String(g._id), name: g.name, required: g.required, multiple: g.multiple, min: g.min, max: g.max,
-      options: g.options.map((o) => ({ id: String(o._id), name: o.name, price: o.price || 0 })),
+      options: g.options.map((o) => ({ id: String(o._id), name: o.name, price: o.price || 0, color: o.color || undefined })),
     })),
   };
 };
@@ -56,7 +59,7 @@ exports.buildSite = async (tenant, { preview = false } = {}) => {
     features,
     ordering: {
       taxPercent: tenant.ordering?.taxPercent || 0, taxInclusive: tenant.ordering?.taxInclusive !== false, taxLabel: tenant.ordering?.taxLabel || 'Tax',
-      minOrder: tenant.ordering?.minOrder || 0, etaMinutes: tenant.ordering?.etaMinutes || 45, pickup: !!features.pickup,
+      minOrder: tenant.ordering?.minOrder || 0, etaMinutes: tenant.ordering?.etaMinutes || 45, etaLabel: tenant.ordering?.etaLabel || '', freeDeliveryOver: tenant.ordering?.freeDeliveryOver || 0, pickup: !!features.pickup,
       paymentAccounts: features.onlinePayments ? (tenant.ordering?.paymentAccounts || []).filter((a) => a.enabled !== false && a.accountNumber).map((a) => ({ method: a.method, accountName: a.accountName, accountNumber: a.accountNumber, instructions: a.instructions })) : [],
     },
     reviews: reviewAgg[0] ? { avg: Math.round(reviewAgg[0].avg * 10) / 10, count: reviewAgg[0].n, items: reviewDocs.map((r) => ({ name: r.name, rating: r.rating, comment: r.comment, reply: r.reply })) } : null,

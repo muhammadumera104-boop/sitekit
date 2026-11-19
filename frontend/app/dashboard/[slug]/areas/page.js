@@ -62,11 +62,11 @@ export default function AreasPage() {
 }
 
 function Settings({ ordering, slug, onSaved }) {
-  const [f, setF] = useState({ taxPercent: ordering.taxPercent ?? 0, taxInclusive: ordering.taxInclusive !== false, taxLabel: ordering.taxLabel || 'Tax', minOrder: ordering.minOrder ?? 0, etaMinutes: ordering.etaMinutes ?? 45 });
+  const [f, setF] = useState({ taxPercent: ordering.taxPercent ?? 0, taxInclusive: ordering.taxInclusive !== false, taxLabel: ordering.taxLabel || 'Tax', minOrder: ordering.minOrder ?? 0, etaMinutes: ordering.etaMinutes ?? 45, etaLabel: ordering.etaLabel || '', freeDeliveryOver: ordering.freeDeliveryOver ?? 0 });
   const [err, setErr] = useState('');
   async function save(e) {
     e.preventDefault(); setErr('');
-    try { await api('/tenant/ordering', { method: 'PUT', tenant: slug, body: { ...f, taxPercent: Number(f.taxPercent), minOrder: Number(f.minOrder), etaMinutes: Number(f.etaMinutes) } }); onSaved(); } catch (x) { setErr(x.message); }
+    try { await api('/tenant/ordering', { method: 'PUT', tenant: slug, body: { ...f, taxPercent: Number(f.taxPercent), minOrder: Number(f.minOrder), etaMinutes: Number(f.etaMinutes), freeDeliveryOver: Number(f.freeDeliveryOver) || 0 } }); onSaved(); } catch (x) { setErr(x.message); }
   }
   const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
   return (
@@ -80,6 +80,8 @@ function Settings({ ordering, slug, onSaved }) {
       </div>
       <div className="grid2">
         <Field label="Minimum order for delivery (Rs.)" type="number" min="0" value={f.minOrder} onChange={set('minOrder')} hint="Applies to every area (an area can set a higher one)." />
+        <Field label="Free delivery over (Rs.)" type="number" min="0" value={f.freeDeliveryOver} onChange={set('freeDeliveryOver')} hint="Orders at or above this value get free delivery. 0 = off." />
+        <Field label="Delivery time text (optional)" value={f.etaLabel} onChange={set('etaLabel')} hint="For shipped goods, e.g. 2-4 days. Replaces the minutes on the website." />
         <Field label="Menu prices"><select value={f.taxInclusive ? 'in' : 'ex'} onChange={(e) => setF({ ...f, taxInclusive: e.target.value === 'in' })}><option value="in">Already include tax</option><option value="ex">Tax is added at checkout</option></select></Field>
       </div>
       <button className="btn primary">Save settings</button>

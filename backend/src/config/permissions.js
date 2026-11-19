@@ -32,6 +32,12 @@ const matrix = {
   'promos.manage': [R.SA, R.PS, R.TO, R.TM],
   'reviews.manage': [...ALL_STAFF],
   'customers.view': [R.SA, R.PS, R.TO, R.TM],
+  'platform.settings': [R.SA],                     // platform name, maintenance, defaults
+  'plans.manage': [R.SA],
+  'payouts.manage': [R.SA],
+  'announcements.manage': [R.SA, R.PS],
+  'catalog.moderate': [R.SA, R.PS],                // hide products / reviews of any store
+  'platformPromos.manage': [R.SA, R.PS],
   'orders.view': [...ALL_STAFF, R.TC],             // transactions
   'orders.manage': [...ALL_STAFF, R.TC],
   'pos.use': [...ALL_STAFF, R.TC],                 // point of sale

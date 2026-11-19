@@ -1,0 +1,168 @@
+/* =====================================================================
+   Dark premium storefront (default for every store; a store can switch to light in Dashboard -> Site settings)
+   Near-black surfaces, soft borders, the store's primary colour as the accent.
+   ===================================================================== */
+.site.dark {
+  color-scheme: dark;
+  --bg: #09090b; --s1: #111114; --s2: #18181c; --s3: #222228; --ink: #f4f4f5; --mut: #a1a1aa; --ln: rgba(255,255,255,.09);
+  --card: var(--s1); --line: var(--ln); --muted: var(--mut);
+  background: var(--bg); color: var(--ink);
+}
+.site.dark ::selection { background: color-mix(in srgb, var(--primary) 45%, transparent); }
+.site.dark a { color: inherit; }
+.site.dark .muted, .site.dark .sub, .site.dark small { color: var(--mut); }
+.site.dark h1, .site.dark h2, .site.dark h3, .site.dark h4, .site.dark .sec h2, .site.dark .sec h3, .site.dark .cat-title, .site.dark .sec .lead { color: var(--ink); }
+.site.dark .sec .sub, .site.dark .lead { color: var(--mut); }
+.site.dark .sec.alt { background: linear-gradient(180deg, var(--s1), var(--bg)); }
+.site.dark .eyebrow { background: color-mix(in srgb, var(--primary) 14%, transparent); color: var(--primary); border: 1px solid color-mix(in srgb, var(--primary) 30%, transparent); }
+.site.dark .link-arrow { color: var(--primary); }
+
+/* header */
+.site.dark .site-header { background: rgba(9,9,11,.72); border-color: var(--ln); }
+.site.dark.has-hero .site-header { background: transparent; border-color: transparent; }
+.site.dark .site-header.scrolled, .site.dark.has-hero .site-header.scrolled, .site.dark.has-hero .site-header.menu-open, .site.dark .site-header.menu-open { background: rgba(9,9,11,.9); border-color: var(--ln); box-shadow: 0 10px 40px rgba(0,0,0,.5); }
+.site.dark .site-logo { color: var(--ink); }
+.site.dark .site-nav a:not(.staff-btn) { color: #d4d4d8; }
+.site.dark .site-nav a:not(.staff-btn):hover, .site.dark .site-nav a.on { background: color-mix(in srgb, var(--primary) 16%, transparent); color: var(--primary); }
+.site.dark .site-header.over:not(.scrolled):not(.menu-open) .site-nav a.on, .site.dark .site-header.over:not(.scrolled):not(.menu-open) .site-nav a:hover:not(.staff-btn) { background: rgba(255,255,255,.14); color: #fff; }
+.site.dark .site-nav a.staff-btn { background: var(--primary); color: var(--on-primary, #09090b); }
+.site.dark .nav-toggle { background: transparent; color: var(--ink); border-color: var(--ln); }
+.site.dark .loc-pill { background: var(--s2); border-color: var(--ln); }
+.site.dark .loc-pill b { color: var(--ink); } .site.dark .loc-pill small, .site.dark .loc-pill i { color: var(--mut); }
+.site.dark .hd-cart, .site.dark .hd-icon { background: var(--s2); color: var(--ink); }
+@media (max-width: 1100px) {
+  .site.dark .site-nav { background: var(--s1); border: 1px solid var(--ln); }
+  .site.dark .site-nav a:not(.staff-btn), .site.dark .site-header.over:not(.scrolled):not(.menu-open) .site-nav a:not(.staff-btn) { color: #e4e4e7 !important; }
+}
+
+/* hero + info */
+.site.dark .info-strip > * { background: var(--s2); color: var(--ink); border: 1px solid var(--ln); box-shadow: 0 18px 50px rgba(0,0,0,.5); }
+.site.dark .info-strip span { background: color-mix(in srgb, var(--primary) 16%, transparent); }
+.site.dark .info-strip small { color: var(--mut); }
+
+/* cards */
+.site.dark .p-card, .site.dark .dish { background: var(--s1); border: 1px solid var(--ln); box-shadow: 0 10px 30px rgba(0,0,0,.35); color: var(--ink); }
+.site.dark .p-card:hover, .site.dark a.dish:hover { border-color: color-mix(in srgb, var(--primary) 45%, transparent); box-shadow: 0 24px 50px rgba(0,0,0,.6); }
+.site.dark .p-img, .site.dark .dish-img { background: var(--s2); }
+.site.dark .p-card p, .site.dark .dish-body p { color: var(--mut); }
+.site.dark .p-card h4, .site.dark .dish-top h4 { color: var(--ink); }
+.site.dark .price { color: var(--primary); }
+.site.dark .price-wrap .was { color: #71717a; }
+.site.dark .ph { background: linear-gradient(135deg, color-mix(in srgb, var(--primary) 18%, var(--s2)), var(--s2)); }
+.site.dark .rating-chip { background: rgba(9,9,11,.85); color: #fff; }
+.site.dark .qty2 { background: var(--s3); } .site.dark .qty2 b { color: var(--ink); }
+.site.dark .add-btn { color: var(--on-primary, #09090b); }
+
+/* menu tools */
+.site.dark .store-tools { background: rgba(9,9,11,.88); border-color: var(--ln); }
+.site.dark .store-tools input, .site.dark .loc-search, .site.dark .hd-search input { background-color: var(--s2); border-color: var(--ln); color: var(--ink); }
+.site.dark .store-tools input::placeholder, .site.dark input::placeholder, .site.dark textarea::placeholder { color: #71717a; }
+.site.dark .chip { background: var(--s2); color: #d4d4d8; border-color: var(--ln); }
+.site.dark .chip:hover { color: var(--primary); border-color: var(--primary); }
+.site.dark .chip.on { background: var(--primary); color: var(--on-primary, #09090b); border-color: var(--primary); }
+.site.dark .cat-nav { background: rgba(9,9,11,.9); border-color: var(--ln); }
+.site.dark .cat-nav a { background: var(--s2); color: #d4d4d8; }
+
+/* about / boxes / forms */
+.site.dark .about-media::before { background: color-mix(in srgb, var(--primary) 16%, transparent); }
+.site.dark .stats-row span { color: var(--mut); }
+.site.dark .box, .site.dark .contact-grid .box { background: var(--s1); border: 1px solid var(--ln); box-shadow: none; color: var(--ink); }
+.site.dark .field label, .site.dark .field span { color: #d4d4d8; }
+.site.dark .field input, .site.dark .field select, .site.dark textarea, .site.dark input[type=text], .site.dark input[type=email], .site.dark input[type=tel], .site.dark input[type=number], .site.dark input[type=password], .site.dark select {
+  background-color: var(--s2); border-color: var(--ln); color: var(--ink);
+}
+.site.dark .field input:focus, .site.dark .field select:focus, .site.dark textarea:focus { border-color: var(--primary); }
+.site.dark .hours td { border-color: var(--ln); }
+.site.dark .alert.info { background: rgba(59,130,246,.12); border-color: rgba(59,130,246,.35); color: #93c5fd; }
+.site.dark .alert.success { background: rgba(16,185,129,.12); border-color: rgba(16,185,129,.35); color: #6ee7b7; }
+.site.dark .alert.error { background: rgba(239,68,68,.12); border-color: rgba(239,68,68,.35); color: #fca5a5; }
+.site.dark .err { color: #fca5a5; } .site.dark .ok-text { color: #6ee7b7; }
+
+/* reviews / CTA */
+.site.dark .rev { background: var(--s1); border: 1px solid var(--ln); box-shadow: none; }
+.site.dark .rev p { color: #d4d4d8; } .site.dark .rev footer { color: var(--mut); }
+.site.dark .rev .reply { background: var(--s2); }
+.site.dark .rev .av, .site.dark .av { background: color-mix(in srgb, var(--primary) 20%, transparent); }
+.site.dark .cta-band { box-shadow: 0 30px 70px rgba(0,0,0,.6); border: 1px solid color-mix(in srgb, var(--primary) 35%, transparent); background: linear-gradient(120deg, color-mix(in srgb, var(--primary) 85%, #000), color-mix(in srgb, var(--primary) 35%, #09090b)); }
+.site.dark .cta-band .cta { background: #09090b; color: var(--primary); }
+
+/* detail + gallery */
+.site.dark .crumbs { color: var(--mut); }
+.site.dark .gal-item { background: var(--s2); }
+.site.dark .page-img { border: 1px solid var(--ln); }
+
+/* location picker, item modal, drawer */
+.site.dark .loc-modal, .site.dark .im, .site.dark .drawer { background: var(--s1); color: var(--ink); border: 1px solid var(--ln); }
+.site.dark .loc-label { color: var(--mut); }
+.site.dark .city, .site.dark .area { background: var(--s2); color: #e4e4e7; border-color: var(--ln); }
+.site.dark .area-list { border-color: var(--ln); background: var(--s2); }
+.site.dark .area { border-bottom-color: var(--ln); } .site.dark .area:hover { background: var(--s3); }
+.site.dark .city.on, .site.dark .area.on { background: color-mix(in srgb, var(--primary) 16%, transparent); color: var(--primary); border-color: var(--primary); }
+.site.dark .loc-chip { background: color-mix(in srgb, var(--primary) 10%, transparent); color: #e4e4e7; }
+.site.dark .im-img { background: var(--s2); }
+.site.dark .im textarea, .site.dark .cart-line2 .note { background: var(--s2); border-color: var(--ln); color: var(--ink); }
+.site.dark .opt { background: var(--s2); border-color: var(--ln); color: #e4e4e7; }
+.site.dark .opt.on { background: color-mix(in srgb, var(--primary) 12%, transparent); border-color: var(--primary); }
+.site.dark .opt-group legend em { background: color-mix(in srgb, var(--primary) 16%, transparent); }
+.site.dark .drawer-foot { background: var(--s2); border-color: var(--ln); }
+.site.dark .cart-line2 { border-color: var(--ln); }
+.site.dark .sum.grand { border-color: var(--ln); }
+.site.dark .free-bar .bar { background: var(--s3); }
+.site.dark .drawer-bg, .site.dark .im-bg, .site.dark .loc-bg { background: rgba(0,0,0,.72); }
+
+/* checkout, tracking, account */
+.site.dark .co-form, .site.dark .co-sum, .site.dark .track-form, .site.dark .track-card { background: var(--s1); border-color: var(--ln); box-shadow: none; }
+.site.dark .co-type button, .site.dark .pay label { background: var(--s2); border-color: var(--ln); color: #e4e4e7; }
+.site.dark .co-type button.on, .site.dark .pay label.on { background: color-mix(in srgb, var(--primary) 12%, transparent); border-color: var(--primary); color: var(--primary); }
+.site.dark .pay-box { background: var(--s2); border-color: var(--ln); }
+.site.dark .pay-acct span, .site.dark .pay-acct small { color: var(--mut); }
+.site.dark .promo-form input { background: var(--s2); color: var(--ink); }
+.site.dark .promo-on { background: rgba(16,185,129,.12); color: #6ee7b7; }
+.site.dark .co-line { border-color: var(--ln); } .site.dark .co-line small { color: var(--mut); }
+.site.dark .co-line.head { border-color: var(--ln); } .site.dark .co-line.total { border-color: var(--ln); }
+.site.dark .code { background: color-mix(in srgb, var(--primary) 18%, transparent); }
+.site.dark .steps2 li { color: #71717a; } .site.dark .steps2 li.done, .site.dark .steps2 li.now { color: var(--ink); }
+.site.dark .steps2 .dot { background: var(--s3); } .site.dark .steps2 li:not(:last-child)::before { background: var(--ln); }
+.site.dark .steps2 small { color: var(--mut); }
+.site.dark .review-form { background: color-mix(in srgb, var(--primary) 8%, var(--s2)); }
+.site.dark .star-pick button { color: #3f3f46; } .site.dark .star-pick button.on { color: #f5a623; }
+.site.dark .acct-tabs { border-color: var(--ln); } .site.dark .acct-tabs button { color: var(--mut); }
+.site.dark .acct-tabs button.on { color: var(--primary); }
+.site.dark .st-pill { background: color-mix(in srgb, var(--primary) 16%, transparent); }
+.site.dark .map-box iframe { filter: invert(.92) hue-rotate(180deg) saturate(.7); }
+.site.dark .btn { background: var(--s2); color: var(--ink); border-color: var(--ln); }
+.site.dark .btn.primary { background: var(--primary); color: var(--on-primary, #09090b); border-color: var(--primary); }
+.site.dark .btn.danger { background: #dc2626; color: #fff; border-color: #dc2626; }
+.site.dark .sk { background: linear-gradient(90deg, var(--s2) 25%, var(--s3) 37%, var(--s2) 63%); background-size: 400% 100%; }
+
+/* footer, floating buttons */
+.site.dark .site-footer { background: #050506; border-top: 1px solid var(--ln); }
+.site.dark .cart-fab { color: var(--on-primary, #09090b); }
+
+/* ---- fashion look (portrait photos, serif headings, gold details) ---- */
+.site.biz-fashion .p-img, .site.biz-fashion .dish-img { aspect-ratio: 4 / 5; }
+.site.biz-fashion .p-card { border-radius: 6px; }
+.site.biz-fashion .p-card .b { gap: 6px; }
+.site.biz-fashion .p-card h4 { font-weight: 500; font-size: 1.02rem; letter-spacing: 0; }
+.site.biz-fashion .hero h1, .site.biz-fashion .sec h2 { font-weight: 600; letter-spacing: -.02em; }
+.site.biz-fashion .cat-tile { border-radius: 8px; aspect-ratio: 3 / 4; }
+.site.biz-fashion .ribbon { border-radius: 4px; }
+.site.biz-fashion .cta, .site.biz-fashion .chip { letter-spacing: .02em; }
+
+/* Brand colours that are dark on black (e.g. deep red) get a lighter accent for TEXT; buttons keep the exact brand colour. */
+.site.dark { --accent: color-mix(in srgb, var(--primary) 62%, #ffffff); }
+.site.dark .price, .site.dark .eyebrow, .site.dark .link-arrow, .site.dark .chip:hover, .site.dark .opt-btn, .site.dark .countdown b,
+.site.dark .stats-row strong, .site.dark .slide-eyebrow, .site.dark .cta-band .cta, .site.dark .city.on, .site.dark .area.on,
+.site.dark .co-type button.on, .site.dark .pay label.on, .site.dark .acct-tabs button.on, .site.dark .pay-acct strong, .site.dark .linkish:hover,
+.site.dark .opt b, .site.dark .co-sum .back, .site.dark .sum.grand, .site.dark .loc-chip u, .site.dark .hero-badge { color: var(--accent); }
+.site.dark .site-nav a:not(.staff-btn):hover, .site.dark .site-nav a.on { color: var(--accent); }
+.site.dark .opt-btn { border-color: color-mix(in srgb, var(--accent) 70%, transparent); }
+.site.dark .opt-btn:hover { background: var(--primary); color: var(--on-primary, #09090b); }
+.site.dark .chip:hover { border-color: var(--accent); }
+.site.dark .eyebrow { border-color: color-mix(in srgb, var(--accent) 35%, transparent); }
+
+/* Portals (admin, dashboards, logins) in dark mode use the premium gold accent. A store dashboard still overrides --brand with its own colour. */
+html[data-theme='dark'] { --brand: #c9a24b; --brand-ink: #09090b; --bg: #09090b; --card: #111114; --line: #26262b; --ink: #f4f4f5; --muted: #a1a1aa; }
+html[data-theme='dark'] .side { background: #060607; border-right: 1px solid #1a1a1e; }
+html[data-theme='dark'] .topbar { background: rgba(9,9,11,.85); }
+html[data-theme='dark'] .auth-card { border: 1px solid #26262b; }
