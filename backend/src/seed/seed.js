@@ -144,9 +144,9 @@ async function topUp(tenant, hash) {
     made.push('new logo');
   }
 
-  // New Fashion Hub hero photo (replaces the first autumn-edit image).
+  // Fashion Hub hero photo: a product-only shot (no people).
   if (slug === 'fashionhub') {
-    const OLD = '1496747611176-843222e1e57c', NEW = '1779912217802-6fd9062a32c7';
+    const OLDS = ['1496747611176-843222e1e57c', '1779912217802-6fd9062a32c7'], NEW = '1699797467199-6bdf301649e8', OLD = OLDS.find((o) => String(tenant.hero?.image || '').includes(o) || (tenant.slides || []).some((x) => String(x.image || '').includes(o))) || OLDS[0];
     const swap = (u) => String(u || '').replace(OLD, NEW);
     if (String(tenant.hero?.image || '').includes(OLD) || (tenant.slides || []).some((x) => String(x.image || '').includes(OLD))) {
       await models.Tenant.updateOne({ _id: tenant._id }, { $set: { 'hero.image': swap(tenant.hero?.image), slides: (tenant.slides || []).map((x) => ({ ...(x.toObject?.() || x), image: swap(x.image) })) } });

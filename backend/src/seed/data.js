@@ -102,9 +102,9 @@ module.exports = [
     owner: { name: 'Fashion Hub Owner', email: 'owner@fashionhub.test' }, editor: { name: 'Fashion Hub Editor', email: 'editor@fashionhub.test' },
     branding: { logo: require('./brandmarks').fhLogo, tagline: 'Quiet luxury, delivered to your door' },
     theme: { primary: '#c9a24b', secondary: '#09090b', mode: 'dark', fontHeading: 'var(--font-playfair), Georgia, serif', fontBody: 'var(--font-jakarta), system-ui, sans-serif', radius: '14px' },
-    hero: { title: 'The Autumn Edit', subtitle: 'Layered looks, rich textures, quiet luxury.', image: un('1779912217802-6fd9062a32c7', 1800, 1000) },
+    hero: { title: 'The Autumn Edit', subtitle: 'Layered looks, rich textures, quiet luxury.', image: un('1699797467199-6bdf301649e8', 1800, 1000) },
     slides: [
-      { eyebrow: 'FASHION HUB', title: 'The Autumn Edit', subtitle: 'Layered looks, rich textures, quiet luxury.', image: un('1779912217802-6fd9062a32c7', 1800, 1000), cta: 'Shop the edit', link: 'products' },
+      { eyebrow: 'FASHION HUB', title: 'The Autumn Edit', subtitle: 'Layered looks, rich textures, quiet luxury.', image: un('1699797467199-6bdf301649e8', 1800, 1000), cta: 'Shop the edit', link: 'products' },
       { eyebrow: 'NEW ARRIVALS', title: 'Sharp Tailoring', subtitle: 'Oxford shirts, chinos and suede bombers — cut to move with you.', image: un('1591047139829-d91aecb6caea', 1800, 1000), cta: 'Shop menswear', link: 'products' },
       { eyebrow: 'FLASH SALE', title: 'Up to 24% off', subtitle: 'Limited-time deals on our best sellers. Ends soon.', image: un('1584917865442-de89df76afd3', 1800, 1000), cta: 'See the deals', link: 'products?sale=1' },
     ],
@@ -114,7 +114,7 @@ module.exports = [
     contact: { phone: '021-111-000-111', email: 'hello@fashionhub.example', address: 'Zamzama Boulevard, DHA Phase 5, Karachi', map: 'https://maps.google.com/?q=Zamzama+Boulevard+Karachi' },
     socials: { instagram: 'https://www.instagram.com/', facebook: 'https://www.facebook.com/', whatsapp: '+92 300 0000000' },
     openingHours: hours('11:00', '22:00'),
-    seo: { title: 'Fashion Hub | Premium menswear, womenswear, shoes & accessories', description: 'Shop tailored menswear, womenswear, leather shoes and accessories. Nationwide delivery and easy 14-day returns.', ogImage: un('1779912217802-6fd9062a32c7', 1200, 630) },
+    seo: { title: 'Fashion Hub | Premium menswear, womenswear, shoes & accessories', description: 'Shop tailored menswear, womenswear, leather shoes and accessories. Nationwide delivery and easy 14-day returns.', ogImage: un('1699797467199-6bdf301649e8', 1200, 630) },
     categories: [
       { name: 'Men', items: [
         fi('Classic Oxford Shirt', 'Crisp cotton oxford with a button-down collar. Easy to dress up or down.', 5900, '1596755094514-f87e34085b2c', { off: 24, tags: ['featured', 'new', 'bestseller'], groups: [SIZE(['S', 'M', 'L', 'XL', 'XXL']), COLOR([['White', '#f5f5f5'], ['Sky Blue', '#8fb8de'], ['Navy', '#1f2a44']])] }),
@@ -123,7 +123,7 @@ module.exports = [
         fi('Merino Wool Sweater', '100% merino wool crew neck. Warm, light and naturally breathable.', 12000, '1620799140408-edc6dcb6d633', { off: 20, tags: ['featured', 'bestseller'], groups: [SIZE(['S', 'M', 'L', 'XL']), COLOR([['Charcoal', '#3b3b3f'], ['Camel', '#c19a6b'], ['Forest', '#2f4a3a']])] }),
       ] },
       { name: 'Women', items: [
-        fi('Silk Wrap Dress', 'Fluid silk wrap dress with a flattering tie waist.', 18900, '1779912217802-6fd9062a32c7', { tags: ['featured', 'new'], groups: [SIZE(['XS', 'S', 'M', 'L', 'XL']), COLOR([['Emerald', '#0f6b55'], ['Black', '#111111'], ['Champagne', '#e7d3b5']])] }),
+        fi('Silk Wrap Dress', 'Fluid silk wrap dress with a flattering tie waist.', 18900, '1699797467199-6bdf301649e8', { tags: ['featured', 'new'], groups: [SIZE(['XS', 'S', 'M', 'L', 'XL']), COLOR([['Emerald', '#0f6b55'], ['Black', '#111111'], ['Champagne', '#e7d3b5']])] }),
         fi('High-Rise Denim', 'Rigid high-rise denim with a straight leg. Gets better with every wash.', 9500, '1624378439575-d8705ad7ae80', { tags: ['new', 'bestseller'], groups: [SIZE(['26', '28', '30', '32', '34'])] }),
       ] },
       { name: 'Shoes', items: [
@@ -139,7 +139,7 @@ module.exports = [
       { title: 'Size Guide', body: 'Not sure about your size? Measure your chest, waist and hips with a soft tape and compare with the size chart on each product.\n\nBetween two sizes? Choose the larger size for a relaxed fit, the smaller for a closer fit.' },
       { title: 'Returns & Exchange', body: 'Not perfect? Return or exchange within 14 days of delivery. Items must be unworn with tags attached.\n\nMessage us on WhatsApp with your order number and we will arrange a free pickup.' },
     ],
-    gallery: [un('1779912217802-6fd9062a32c7', 900, 700), un('1591047139829-d91aecb6caea', 900, 700), un('1584917865442-de89df76afd3', 900, 700), un('1620799140408-edc6dcb6d633', 900, 700)],
+    gallery: [un('1699797467199-6bdf301649e8', 900, 700), un('1591047139829-d91aecb6caea', 900, 700), un('1584917865442-de89df76afd3', 900, 700), un('1620799140408-edc6dcb6d633', 900, 700)],
   },
 ];
 module.exports.photo = photo;
