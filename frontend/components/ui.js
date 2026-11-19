@@ -11,11 +11,22 @@ export function Alert({ type = 'error', children }) {
   return <div className={`alert ${type}`} role={type === 'error' ? 'alert' : 'status'}>{children}</div>;
 }
 
+// Password box with a Show / Hide button.
+export function PasswordInput({ style, ...input }) {
+  const [show, setShow] = useState(false);
+  return (
+    <div style={{ position: 'relative' }}>
+      <input {...input} type={show ? 'text' : 'password'} style={{ ...style, paddingRight: 64, width: '100%' }} />
+      <button type="button" className="btn ghost sm" style={{ position: 'absolute', right: 4, top: 4 }} onClick={() => setShow(!show)} aria-label={show ? 'Hide password' : 'Show password'}>{show ? 'Hide' : 'Show'}</button>
+    </div>
+  );
+}
+
 export function Field({ label, error, hint, children, ...input }) {
   return (
     <div className="field">
       {label && <label>{label}</label>}
-      {children || <input {...input} />}
+      {children || (input.type === 'password' ? <PasswordInput {...input} /> : <input {...input} />)}
       {hint && <small>{hint}</small>}
       {error && <span className="err">{error}</span>}
     </div>

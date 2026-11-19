@@ -4,7 +4,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import { useAuth, homeFor } from '@/lib/auth';
 import { api } from '@/lib/api';
-import { Loading } from './ui';
+import { Loading, Modal, Field, Alert } from './ui';
 
 export function Forbidden({ message = 'You do not have permission to view this page.' }) {
   return (
@@ -47,8 +47,38 @@ export function Protected({ area, slug, perm, children }) {
   return children;
 }
 
+// Lets any signed-in person choose their own password.
+function ChangePassword({ onClose }) {
+  const [f, setF] = useState({ cur: '', next: '', again: '' });
+  const [err, setErr] = useState('');
+  const [done, setDone] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const submit = async (e) => {
+    e.preventDefault(); setErr('');
+    if (f.next !== f.again) return setErr('The new passwords do not match');
+    setBusy(true);
+    try { await api('/auth/change-password', { method: 'POST', body: { currentPassword: f.cur, newPassword: f.next } }); setDone(true); } catch (x) { setErr(x.message); } finally { setBusy(false); }
+  };
+  return (
+    <Modal title="Change password" onClose={onClose}>
+      {done ? (
+        <><Alert type="success">Your password was changed. Other devices were signed out.</Alert><button className="btn primary" onClick={onClose}>Done</button></>
+      ) : (
+        <form onSubmit={submit} className="stack">
+          <Alert>{err}</Alert>
+          <Field label="Current password" type="password" value={f.cur} onChange={(e) => setF({ ...f, cur: e.target.value })} required autoComplete="current-password" />
+          <Field label="New password" type="password" value={f.next} onChange={(e) => setF({ ...f, next: e.target.value })} minLength={8} required autoComplete="new-password" hint="At least 8 characters" />
+          <Field label="Confirm new password" type="password" value={f.again} onChange={(e) => setF({ ...f, again: e.target.value })} minLength={8} required autoComplete="new-password" />
+          <div className="row"><button className="btn primary" disabled={busy}>{busy ? 'Saving…' : 'Change password'}</button><button type="button" className="btn" onClick={onClose}>Cancel</button></div>
+        </form>
+      )}
+    </Modal>
+  );
+}
+
 export function Shell({ title, brand, logo, nav, banner, children }) {
   const { user, logout } = useAuth();
+  const [pw, setPw] = useState(false);
   const path = usePathname();
   const [open, setOpen] = useState(false);
   useEffect(() => setOpen(false), [path]);
@@ -76,9 +106,11 @@ export function Shell({ title, brand, logo, nav, banner, children }) {
               try { localStorage.setItem('theme', next); } catch { /* ignore */ }
             }}>🌓</button>
             <span className="muted" style={{ fontSize: 13 }}>{user.name} · {user.role.replace('_', ' ')}</span>
+            <button className="btn sm" onClick={() => setPw(true)}>Change password</button>
             <button className="btn sm" onClick={logout}>Log out</button>
           </div>
         </header>
+        {pw && <ChangePassword onClose={() => setPw(false)} />}
         <div className="content">{children}</div>
       </div>
     </div>

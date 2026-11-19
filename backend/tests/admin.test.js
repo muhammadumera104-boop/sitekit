@@ -157,3 +157,18 @@ test('accounts: create a login with email + password, reset the password, remove
   await login(email, 'SecondPass#456');
   assert.equal((await call(`/admin/users/${id}`, { method: 'DELETE', token: t })).status, 200);
 });
+
+test('everyone can change their own password; wrong current password is refused', async () => {
+  const t = await admin();
+  const email = `chg${Date.now().toString().slice(-6)}@siteforge.test`;
+  const c = await call('/admin/users', { method: 'POST', token: t, body: { name: 'Change Me', email, role: 'platform_staff', password: 'FirstPass#123' } });
+  assert.equal(c.status, 201);
+  const tok = await login(email, 'FirstPass#123');
+  assert.equal((await call('/auth/change-password', { method: 'POST', body: { currentPassword: 'FirstPass#123', newPassword: 'NewPass#12345' } })).status, 401, 'needs sign-in');
+  assert.equal((await call('/auth/change-password', { method: 'POST', token: tok, body: { currentPassword: 'wrong', newPassword: 'NewPass#12345' } })).status, 400);
+  assert.equal((await call('/auth/change-password', { method: 'POST', token: tok, body: { currentPassword: 'FirstPass#123', newPassword: 'short' } })).status, 400);
+  assert.equal((await call('/auth/change-password', { method: 'POST', token: tok, body: { currentPassword: 'FirstPass#123', newPassword: 'NewPass#12345' } })).status, 200);
+  assert.equal((await call('/auth/login', { method: 'POST', body: { email, password: 'FirstPass#123' } })).status, 401);
+  await login(email, 'NewPass#12345');
+  await call(`/admin/users/${c.data.user.id}`, { method: 'DELETE', token: t });
+});

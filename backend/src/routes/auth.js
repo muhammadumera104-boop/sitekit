@@ -122,6 +122,22 @@ router.post('/reset-password', loginLimiter, wrap(async (req, res) => {
   res.json({ message: 'Password updated. You can now log in.', loginPath: slug ? `/${slug}/login` : '/login' });
 }));
 
+// Any signed-in person (platform team, owner, manager, cashier, rider...) can set their own password.
+router.post('/change-password', authenticate, loginLimiter, wrap(async (req, res) => {
+  const { currentPassword, newPassword } = z.object({ currentPassword: z.string().min(1), newPassword: z.string().min(8, 'Password must be at least 8 characters').max(100) }).parse(req.body);
+  const user = await User.findById(req.user._id);
+  if (!user?.passwordHash || !(await bcrypt.compare(currentPassword, user.passwordHash))) throw new HttpError(400, 'Current password is incorrect');
+  if (currentPassword === newPassword) throw new HttpError(400, 'Choose a password different from the current one');
+  user.passwordHash = await bcrypt.hash(newPassword, 12);
+  user.failedAttempts = 0; user.lockUntil = undefined;
+  await user.save();
+  const rt = req.cookies?.rt;
+  // Sign out other devices, keep this one signed in.
+  await Session.deleteMany({ userId: user._id, ...(rt ? { refreshTokenHash: { $ne: sha256(rt) } } : {}) });
+  await audit(req, 'password.changed', { userId: user._id, tenantId: user.tenantId });
+  res.json({ message: 'Password changed.' });
+}));
+
 // Frontend reports a blocked page visit so direct-URL attempts are logged (UC-4).
 router.post('/access-denied', authenticate, wrap(async (req, res) => {
   await audit(req, 'access.denied', { details: { path: String(req.body?.path || '').slice(0, 200), via: 'ui' } });

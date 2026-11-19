@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { fmtDate, money } from '@/lib/util';
 import { useOrdering } from './Ordering';
+import { PasswordInput } from '../ui';
 
 const STATUS = { new: 'Placed', confirmed: 'Confirmed', preparing: 'Preparing', ready: 'Ready', out_for_delivery: 'On the way', delivered: 'Delivered', completed: 'Completed', cancelled: 'Cancelled' };
 
@@ -63,7 +64,7 @@ function AuthForm({ slug, o }) {
         {mode === 'register' && <div className="field"><label>Full name *</label><input value={f.name} onChange={set('name')} autoComplete="name" required /></div>}
         <div className="field"><label>{mode === 'login' ? 'Mobile number or email *' : 'Mobile number *'}</label><input value={f.phone} onChange={set('phone')} inputMode={mode === 'login' ? 'text' : 'tel'} autoComplete="username" placeholder="03xx-xxxxxxx" required /></div>
         {mode === 'register' && <div className="field"><label>Email (optional)</label><input type="email" value={f.email} onChange={set('email')} autoComplete="email" /></div>}
-        <div className="field"><label>Password *</label><input type="password" value={f.password} onChange={set('password')} autoComplete={mode === 'login' ? 'current-password' : 'new-password'} minLength={6} required /></div>
+        <div className="field"><label>Password *</label><PasswordInput value={f.password} onChange={set('password')} autoComplete={mode === 'login' ? 'current-password' : 'new-password'} minLength={6} required /></div>
         <button className="cta" style={{ width: '100%' }} disabled={busy}>{busy ? 'Please wait…' : mode === 'login' ? 'Sign in' : 'Create account'}</button>
         <p className="center" style={{ marginBottom: 0 }}>
           {mode === 'login' ? <>New here? <button type="button" className="linkish" style={{ color: 'var(--primary)', fontWeight: 700 }} onClick={() => { setMode('register'); setErr(''); }}>Create an account</button></>
@@ -152,7 +153,7 @@ function Profile({ slug, o }) {
       <div className="field"><label>Full name</label><input value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} required /></div>
       <div className="field"><label>Mobile number</label><input value={o.customer.phone} disabled /></div>
       <div className="field"><label>Email</label><input type="email" value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} /></div>
-      <div className="field"><label>New password (optional)</label><input type="password" minLength={6} value={f.password} onChange={(e) => setF({ ...f, password: e.target.value })} /></div>
+      <div className="field"><label>New password (optional)</label><PasswordInput minLength={6} value={f.password} onChange={(e) => setF({ ...f, password: e.target.value })} /></div>
       <button className="cta">Save changes</button>
     </form>
   );
