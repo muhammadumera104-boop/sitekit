@@ -81,6 +81,17 @@ async function ensurePlans() {
   return models.Plan.findOne({ name: 'Pro' });
 }
 
+// Real photos (Unsplash, free licence) for the Kababjees Fried Chicken style menu items.
+const unsplash = (id) => `https://images.unsplash.com/photo-${id}?w=700&h=560&q=75&auto=format&fit=crop`;
+const IMAGE_FIX = {
+  kababjees: {
+    "Chick N' Crunch Burger": '1637710847214-f91d99669e18', 'Chick N Crunch Burger, Fries & Regular Drink': '1703219342329-fce8488cf443',
+    'Flavor Craver': '1561758033-d89a9ad46330', 'Ultimate Crunch Feast': '1670688866261-db6697858df8',
+    'Chicken Piece': '1638439430466-b2bb7fdc1d67', 'French Fries': '1630384060421-cb20d0e0649d', 'Coleslaw': '1779176954426-54d02bbd9637', 'Al-Baik Sauce': '1518013431117-eb1465fa5752',
+    'Extra Mandi Rice': '1634324092526-91f5e878b72f', 'Fried Fish Mandi': '1665332195309-9d75071138f0', 'Classic Fried Plain Chicken Mandi': '1603496987674-79600a000f55',
+  },
+};
+
 async function ensureUser(tenant, { name, email, role, branchId, phone }, hash) {
   const exists = await models.User.findOne({ email });
   if (exists) { if (String(exists.tenantId) === String(tenant._id) && branchId && !exists.branchId) { exists.branchId = branchId; await exists.save(); } return false; }
@@ -127,6 +138,11 @@ async function topUp(tenant, hash) {
 
   // Premium dark storefront for every store (only where no mode is stored yet).
   if ((await models.Tenant.updateOne({ _id: tenant._id, 'theme.mode': { $exists: false } }, { $set: { 'theme.mode': 'dark' } })).modifiedCount) made.push('dark theme');
+
+  for (const [name, id] of Object.entries(IMAGE_FIX[slug] || {})) {
+    const r = await models.MenuItem.updateOne({ tenantId: tenant._id, name, image: { $ne: unsplash(id) } }, { $set: { image: unsplash(id) } });
+    if (r.modifiedCount) made.push(`photo ${name}`);
+  }
 
   // Ordering settings (tax, delivery ETA) and delivery areas.
   if (ORDERING[slug] && (slug === 'fashionhub' ? !tenant.ordering?.etaLabel : !tenant.ordering?.taxPercent)) { await models.Tenant.updateOne({ _id: tenant._id }, { $set: Object.fromEntries(Object.entries(ORDERING[slug]).map(([k, v]) => [`ordering.${k}`, v])) }); made.push('ordering settings'); }

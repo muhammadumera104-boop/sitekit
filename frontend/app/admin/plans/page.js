@@ -31,7 +31,7 @@ export default function Plans() {
             <div className="price-big">{money(p.price)}<small className="muted" style={{ fontSize: 14, fontWeight: 500 }}> /{p.interval}</small></div>
             <ul>
               <li>{lim(p.maxProducts)} products</li><li>{lim(p.maxStaff)} staff accounts</li><li>{p.commissionPercent}% platform commission</li>
-              {p.features?.map((f) => <li key={f}>{f}</li>)}
+              {p.features?.filter((f) => !/products?|team accounts?|staff|commission/i.test(f)).map((f) => <li key={f}>{f}</li>)}
             </ul>
             <div className="grow" />
             <div className="row between"><span className="muted" style={{ fontSize: 13 }}>{p.stores} website{p.stores === 1 ? '' : 's'}</span>
