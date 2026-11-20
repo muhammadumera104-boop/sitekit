@@ -10,6 +10,15 @@ exports.signAccess = (user) => jwt.sign(
   env.accessSecret, { expiresIn: '15m' },
 );
 
+// What the public demo visitor may read (everything else, and every write, is refused).
+const DEMO_READ = [
+  /^\/api\/auth\/me$/,
+  /^\/api\/admin\/(stats|sites|stores|overview|products|orders|reviews|promos|payments|payouts|plans|announcements|features|templates)$/,
+  /^\/api\/tenant\/(me|features|menu|pages|media|analytics|promos|reviews|announcements|branches|orders|orders\/summary|areas|ordering|pos\/items|inventory|preview|riders)$/,
+  /^\/api\/tenant\/orders\/[a-f0-9]{24}$/i,
+];
+const demoAllowed = (req) => ['GET', 'HEAD'].includes(req.method) && DEMO_READ.some((re) => re.test(req.originalUrl.split('?')[0].replace(/\/$/, '')));
+
 // 401 when not logged in.
 exports.authenticate = wrap(async (req, _res, next) => {
   const h = req.headers.authorization || '';
@@ -19,6 +28,7 @@ exports.authenticate = wrap(async (req, _res, next) => {
   try { payload = jwt.verify(token, env.accessSecret); } catch { throw new HttpError(401, 'Invalid or expired token'); }
   const user = await User.findById(payload.sub).select('-passwordHash -resetTokenHash');
   if (!user || user.status !== 'active') throw new HttpError(401, 'Account unavailable');
+  if (user.role === 'demo_viewer' && !demoAllowed(req)) throw new HttpError(403, 'Demo mode is view-only. This action is not available.');
   req.user = user;
   next();
 });

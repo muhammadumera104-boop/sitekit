@@ -82,7 +82,10 @@ export function Shell({ title, brand, logo, nav, banner, children }) {
   const path = usePathname();
   const [open, setOpen] = useState(false);
   useEffect(() => setOpen(false), [path]);
-  const allowed = nav.filter((n) => n.sep || !n.perm || user.permissions.includes(n.perm));
+  const demo = user.role === 'demo_viewer';
+  // The public demo visitor never sees pages that hold personal data or account management.
+  const hiddenForDemo = /^\/admin\/(customers|tenants|users|accounts|audit|settings)(\/|$)/;
+  const allowed = nav.filter((n) => n.sep || ((!n.perm || user.permissions.includes(n.perm)) && !(demo && hiddenForDemo.test(n.href || ''))));
   // Drop section headings that have no visible link under them (e.g. "Sales" for an editor).
   const visible = allowed.filter((n, i) => !n.sep || (allowed[i + 1] && !allowed[i + 1].sep));
   return (
@@ -96,6 +99,7 @@ export function Shell({ title, brand, logo, nav, banner, children }) {
         </nav>
       </aside>
       <div className="main">
+        {demo && <div className="demo-bar">👀 Demo mode — you can look around every page, but changes are turned off.</div>}
         {banner}
         <header className="topbar">
           <div className="row"><button className="btn sm burger" onClick={() => setOpen(!open)} aria-label="Menu">☰</button><strong>{title}</strong></div>
@@ -106,7 +110,7 @@ export function Shell({ title, brand, logo, nav, banner, children }) {
               try { localStorage.setItem('theme', next); } catch { /* ignore */ }
             }}>🌓</button>
             <span className="muted" style={{ fontSize: 13 }}>{user.name} · {user.role.replace('_', ' ')}</span>
-            <button className="btn sm" onClick={() => setPw(true)}>Change password</button>
+            {!demo && <button className="btn sm" onClick={() => setPw(true)}>Change password</button>}
             <button className="btn sm" onClick={logout}>Log out</button>
           </div>
         </header>

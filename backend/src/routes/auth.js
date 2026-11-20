@@ -71,6 +71,16 @@ router.post('/login', loginLimiter, wrap(async (req, res) => {
   res.json(await startSession(res, user));
 }));
 
+// Public demo: anyone with the link gets a read-only session (role demo_viewer) with no password.
+// Turn it off by setting DEMO_MODE=off in the backend environment.
+router.post('/demo', loginLimiter, wrap(async (_req, res) => {
+  if (String(process.env.DEMO_MODE || 'on').toLowerCase() === 'off') throw new HttpError(404, 'Demo is not available');
+  const user = await User.findOneAndUpdate({ email: 'demo@siteforge.local' },
+    { $setOnInsert: { name: 'Demo Visitor', email: 'demo@siteforge.local', role: 'demo_viewer', status: 'active' } }, { upsert: true, new: true });
+  if (user.role !== 'demo_viewer' || user.status !== 'active') throw new HttpError(403, 'Demo is not available');
+  res.json(await startSession(res, user));
+}));
+
 router.post('/refresh', wrap(async (req, res) => {
   const token = req.cookies?.rt;
   if (!token) throw new HttpError(401, 'No session');

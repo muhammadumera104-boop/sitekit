@@ -48,3 +48,5 @@
 html[data-theme='dark'] .announce-bar.warning { background: #3a2a08; color: #fdb022; border-color: #7a5410; }
 html[data-theme='dark'] .announce-bar.success { background: #0b2b1d; color: #6ce9a6; border-color: #14532d; }
 @media (max-width: 760px) { .rank-row { grid-template-columns: 1fr auto; } .rank-bar { display: none; } }
+
+.demo-bar { background: linear-gradient(90deg, #c9a24b, #e6c878); color: #1a1405; text-align: center; font-weight: 600; font-size: 13px; padding: 7px 12px; }

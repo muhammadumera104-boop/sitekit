@@ -1,9 +1,10 @@
 // Single source of truth for the permission matrix (SRS 4.2 + video script roles: Admin, Cashier, Vendor).
 const R = {
   SA: 'super_admin', PS: 'platform_staff',
+  DV: 'demo_viewer',                                // public visitor link: read-only, no password
   TO: 'tenant_owner', TM: 'tenant_manager', TE: 'tenant_editor', TC: 'tenant_cashier', TV: 'tenant_vendor', TR: 'tenant_rider',
 };
-const PLATFORM_ROLES = [R.SA, R.PS];
+const PLATFORM_ROLES = [R.SA, R.PS, R.DV];
 const TENANT_ROLES = [R.TO, R.TM, R.TE, R.TC, R.TV, R.TR];
 // Staff login doors on a store's public site: each door only accepts these roles.
 const DOORS = { owner: [R.TO], manager: [R.TM], worker: [R.TE, R.TC, R.TV], rider: [R.TR] };
@@ -47,8 +48,12 @@ const matrix = {
   'messages.manage': ALL_STAFF,
 };
 
-const can = (role, perm) => !!matrix[perm] && matrix[perm].includes(role);
-const permissionsFor = (role) => Object.keys(matrix).filter((p) => matrix[p].includes(role));
+// The demo visitor may look at everything except personal data and account management. It can never write:
+// middleware/auth.js refuses every non-GET request for this role and only allows the GET paths on a short list.
+const DEMO_DENY = ['customers.view', 'audit.view', 'platformUsers.manage', 'tenantUsers.manage', 'messages.manage', 'platform.settings',
+  'tenant.create', 'tenant.delete', 'tenant.suspend', 'templates.manage', 'features.manage', 'tenant.requestTemplate'];
+const can = (role, perm) => (role === R.DV ? !!matrix[perm] && !DEMO_DENY.includes(perm) : !!matrix[perm] && matrix[perm].includes(role));
+const permissionsFor = (role) => Object.keys(matrix).filter((p) => can(role, p));
 
 const RESERVED_SLUGS = ['admin', 'dashboard', 'login', 'api', 'static', '_next', 'assets', 'public', 'register', '404',
   'forgot-password', 'reset-password', 'uploads', 'favicon.ico', 'robots.txt', 'sitemap.xml'];

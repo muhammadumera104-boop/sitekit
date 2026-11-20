@@ -172,3 +172,21 @@ test('everyone can change their own password; wrong current password is refused'
   await login(email, 'NewPass#12345');
   await call(`/admin/users/${c.data.user.id}`, { method: 'DELETE', token: t });
 });
+
+test('demo visitor link: no password, can look at pages, can never change anything or see personal data', async () => {
+  const r = await call('/auth/demo', { method: 'POST' });
+  assert.equal(r.status, 200, JSON.stringify(r.data));
+  assert.equal(r.data.user.role, 'demo_viewer');
+  const t = r.data.accessToken;
+  const slugH = { 'x-tenant-slug': 'kababjees' };
+  const get = (p, h = {}) => fetch(API + p, { headers: { Authorization: `Bearer ${t}`, ...h } }).then((x) => x.status);
+  for (const p of ['/admin/overview', '/admin/sites', '/admin/products', '/admin/orders', '/admin/plans', '/admin/payments', '/admin/announcements', '/auth/me']) assert.equal(await get(p), 200, `read ${p}`);
+  for (const p of ['/tenant/menu', '/tenant/orders', '/tenant/analytics', '/tenant/areas']) assert.equal(await get(p, slugH), 200, `read ${p}`);
+  for (const p of ['/admin/users', '/admin/customers', '/admin/audit', '/admin/settings', '/admin/tenants']) assert.equal(await get(p), 403, `blocked ${p}`);
+  for (const p of ['/tenant/users', '/tenant/customers', '/tenant/messages', '/tenant/audit']) assert.equal(await get(p, slugH), 403, `blocked ${p}`);
+  for (const [m, p, b] of [['POST', '/admin/promos', { code: 'X' }], ['PATCH', '/admin/products/000000000000000000000000', {}], ['DELETE', '/admin/plans/000000000000000000000000'], ['PUT', '/admin/settings', { platformName: 'Hacked' }],
+    ['POST', '/auth/change-password', { currentPassword: 'a', newPassword: 'bbbbbbbb' }], ['POST', '/tenant/menu', { name: 'x', price: 1 }], ['POST', '/admin/users', {}]]) {
+    const x = await fetch(API + p, { method: m, headers: { Authorization: `Bearer ${t}`, 'Content-Type': 'application/json', ...slugH }, body: b ? JSON.stringify(b) : undefined });
+    assert.equal(x.status, 403, `${m} ${p} must be refused`);
+  }
+});
