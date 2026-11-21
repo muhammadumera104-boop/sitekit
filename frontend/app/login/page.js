@@ -16,7 +16,8 @@ function LoginForm() {
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
 
-  useEffect(() => { if (!loading && user?.isPlatform) router.replace(homeFor(user)); }, [loading, user, router]);
+  useEffect(() => { // A demo visitor who clicks "Admin login" must see the form, not be sent back into the demo.
+    if (!loading && user?.isPlatform && user.role !== 'demo_viewer') router.replace(homeFor(user)); }, [loading, user, router]);
 
   async function submit(e) {
     e.preventDefault(); setError(''); setBusy(true);

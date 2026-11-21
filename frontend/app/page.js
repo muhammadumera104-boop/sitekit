@@ -23,7 +23,7 @@ export default function Home() {
     <div className="lp">
       <header className="lp-nav">
         <div className="lp-brand"><img src="/icon.svg" alt="" width="34" height="34" /> SiteForge</div>
-        <Link className="btn lp-btn" href="/login">Admin sign in</Link>
+        <div className="row" style={{ gap: 8 }}><Link className="btn lp-btn" href="/demo" prefetch={false}>View demo</Link><Link className="btn lp-btn" href="/login" prefetch={false}>Admin login</Link></div>
       </header>
       <section className="lp-hero">
         <div className="lp-copy">
@@ -31,7 +31,8 @@ export default function Home() {
           <h1>One platform. Every <em>premium</em> store online.</h1>
           <p>Launch branded websites with delivery, POS, riders and payments. Manage everything from a single admin portal.</p>
           <div className="lp-cta">
-            <Link className="btn primary lg" href="/login">Open admin portal →</Link>
+            <Link className="btn primary lg" href="/demo" prefetch={false}>View demo (no login) →</Link>
+            <Link className="btn lg" href="/login" prefetch={false}>Admin login</Link>
           </div>
           <div className="lp-note">Looking for a restaurant or shop? Open its own web address.</div>
         </div>
@@ -60,8 +61,8 @@ export default function Home() {
       </section>
       <footer className="lp-foot">
         <div className="lp-foot-links">
-          <Link href="/login" className="lp-foot-link"><Icon name="shield" size={18} /> Admin portal</Link>
-          <Link href="/demo" className="lp-foot-link"><Icon name="eye" size={18} /> View demo (no login)</Link>
+          <Link href="/login" prefetch={false} className="lp-foot-link"><Icon name="shield" size={18} /> Admin portal</Link>
+          <Link href="/demo" prefetch={false} className="lp-foot-link"><Icon name="eye" size={18} /> View demo (no login)</Link>
         </div>
         <div>© {new Date().getFullYear()} SiteForge · Multi-store ordering platform</div>
       </footer>
