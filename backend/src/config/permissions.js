@@ -51,7 +51,7 @@ const matrix = {
 // The demo visitor may look at everything except personal data and account management. It can never write:
 // middleware/auth.js refuses every non-GET request for this role and only allows the GET paths on a short list.
 const DEMO_DENY = ['customers.view', 'audit.view', 'platformUsers.manage', 'tenantUsers.manage', 'messages.manage', 'platform.settings',
-  'tenant.create', 'tenant.delete', 'tenant.suspend', 'templates.manage', 'features.manage', 'tenant.requestTemplate'];
+  'deliveries.use', 'tenant.create', 'tenant.delete', 'tenant.suspend', 'templates.manage', 'features.manage', 'tenant.requestTemplate'];
 const can = (role, perm) => (role === R.DV ? !!matrix[perm] && !DEMO_DENY.includes(perm) : !!matrix[perm] && matrix[perm].includes(role));
 const permissionsFor = (role) => Object.keys(matrix).filter((p) => can(role, p));
 

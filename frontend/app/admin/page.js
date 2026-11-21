@@ -4,6 +4,7 @@ import { api } from '@/lib/api';
 import { fmtDate, money } from '@/lib/util';
 import { Alert, Badge, Loading, useLoad } from '@/components/ui';
 import { StoreCell } from '@/components/admin/bits';
+import { Icon } from '@/components/Icons';
 
 // Platform overview: money, orders, customers across every store, plus the last 14 days.
 export default function AdminOverview() {
@@ -13,23 +14,23 @@ export default function AdminOverview() {
   const max = Math.max(1, ...s.days.map((d) => d.revenue));
   const topMax = Math.max(1, ...s.topStores.map((t) => t.revenue));
   const cards = [
-    ['Revenue (all stores)', money(s.revenue), '/admin/orders', '💰'],
-    ['Orders', s.orders.toLocaleString(), '/admin/orders', '🧾'],
-    ['Customers', s.customers.toLocaleString(), '/admin/customers', '🧑‍🤝‍🧑'],
-    ['Products listed', s.products.toLocaleString(), '/admin/products', '🛍️'],
-    ['Live websites', `${s.stores.active} / ${s.stores.total}`, '/admin/sites', '🌐'],
-    ['Payments to verify', s.pendingPayments, '/admin/payments?status=pending', '💳'],
-    ['Average rating', s.rating ? `${s.rating.avg} ★ (${s.rating.count})` : '—', '/admin/reviews', '⭐'],
+    ['Revenue (all stores)', money(s.revenue), '/admin/orders', 'coins'],
+    ['Orders', s.orders.toLocaleString(), '/admin/orders', 'receipt'],
+    ['Customers', s.customers.toLocaleString(), '/admin/customers', 'users'],
+    ['Products listed', s.products.toLocaleString(), '/admin/products', 'bag'],
+    ['Live websites', `${s.stores.active} / ${s.stores.total}`, '/admin/sites', 'globe'],
+    ['Payments to verify', s.pendingPayments, '/admin/payments?status=pending', 'card'],
+    ['Average rating', s.rating ? `${s.rating.avg} ★ (${s.rating.count})` : '—', '/admin/reviews', 'star'],
   ];
   return (
     <>
       <div className="page-head">
         <div><h1>Overview</h1><p className="muted" style={{ margin: '4px 0 0' }}>Everything happening across all websites.</p></div>
-        <div className="row"><Link className="btn" href="/admin/sites">🌐 All websites</Link><Link className="btn primary" href="/admin/tenants/new">＋ Add new tenant</Link></div>
+        <div className="row"><Link className="btn" href="/admin/sites">  <Icon name="globe" size={16} /> All websites</Link><Link className="btn primary" href="/admin/tenants/new"><Icon name="plus" size={16} /> Add new tenant</Link></div>
       </div>
       <div className="stats">
         {cards.map(([l, n, href, ic]) => (
-          <Link className="stat stat-link" href={href} key={l}><div className="ic">{ic}</div><div className="n" style={{ fontSize: String(n).length > 11 ? 21 : undefined }}>{n}</div><div className="l">{l}</div></Link>
+          <Link className="stat stat-link" href={href} key={l}><div className="ic"><Icon name={ic} size={20} /></div><div className="n" style={{ fontSize: String(n).length > 11 ? 21 : undefined }}>{n}</div><div className="l">{l}</div></Link>
         ))}
       </div>
       {s.pendingPayments > 0 && <Alert type="info">💳 {s.pendingPayments} online payment{s.pendingPayments > 1 ? 's' : ''} waiting for verification. <Link href="/admin/payments?status=pending" style={{ textDecoration: 'underline', fontWeight: 700 }}>Review now</Link></Alert>}

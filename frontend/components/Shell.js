@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useAuth, homeFor } from '@/lib/auth';
 import { api } from '@/lib/api';
 import { Loading, Modal, Field, Alert } from './ui';
+import { NavIcon, BrandMark } from './Icons';
 
 export function Forbidden({ message = 'You do not have permission to view this page.' }) {
   return (
@@ -91,11 +92,11 @@ export function Shell({ title, brand, logo, nav, banner, children }) {
   return (
     <div className="shell">
       <aside className={`side ${open ? 'open' : ''}`}>
-        <div className="brand">{logo ? <img className="logo-sm" src={logo} alt="" /> : <span>◆</span>}<span>{brand}</span></div>
+        <div className="brand">{logo ? <img className="logo-sm" src={logo} alt="" /> : <BrandMark />}<span>{brand}</span></div>
         <nav>
           {visible.map((n, i) => (n.sep
             ? <div key={i} className="sep">{n.sep}</div>
-            : <Link key={n.href} href={n.href} className={(n.exact ? path === n.href : path.startsWith(n.href)) ? 'on' : ''}>{n.icon} {n.label}{n.badge > 0 && <span className="nav-badge">{n.badge}</span>}</Link>))}
+            : <Link key={n.href} href={n.href} className={(n.exact ? path === n.href : path.startsWith(n.href)) ? 'on' : ''}><NavIcon glyph={n.icon} /><span className="nav-label">{n.label}</span>{n.badge > 0 && <span className="nav-badge">{n.badge}</span>}</Link>))}
         </nav>
       </aside>
       <div className="main">

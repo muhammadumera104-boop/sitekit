@@ -70,3 +70,10 @@
 .lp-steps h3 { margin: 0 0 6px; } .lp-steps p { margin: 0; color: #9aa3c0; }
 .lp-foot { text-align: center; color: #6b7494; padding: 30px 24px 40px; font-size: 14px; border-top: 1px solid rgba(255,255,255,.06); }
 @media (max-width: 900px) { .lp-hero { grid-template-columns: 1fr; padding-top: 24px; } .lp-card { order: -1; } .lp-mock { transform: none; } }
+
+/* Landing page footer: admin portal + demo links */
+.lp-foot { display: grid; gap: 18px; justify-items: center; }
+.lp-foot-links { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; }
+.lp-foot-link { display: inline-flex; align-items: center; gap: 8px; padding: 10px 18px; border-radius: 999px; border: 1px solid rgba(201,162,75,.35); background: rgba(201,162,75,.08); color: #e6c878; font-weight: 600; font-size: 14px; transition: background .15s, transform .15s; }
+.lp-foot-link:hover { background: rgba(201,162,75,.18); transform: translateY(-1px); }
+.lp-foot-link .nav-ico { opacity: 1; }

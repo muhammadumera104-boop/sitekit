@@ -50,3 +50,12 @@ html[data-theme='dark'] .announce-bar.success { background: #0b2b1d; color: #6ce
 @media (max-width: 760px) { .rank-row { grid-template-columns: 1fr auto; } .rank-bar { display: none; } }
 
 .demo-bar { background: linear-gradient(90deg, #c9a24b, #e6c878); color: #1a1405; text-align: center; font-weight: 600; font-size: 13px; padding: 7px 12px; }
+
+/* Side menu icons: thin line icons instead of emoji */
+.side nav a .nav-ico { width: 18px; height: 18px; flex: none; opacity: .72; transition: opacity .15s, transform .15s; }
+.side nav a:hover .nav-ico { opacity: 1; transform: translateX(1px); }
+.side nav a.on .nav-ico { opacity: 1; }
+.side nav a { gap: 12px; }
+.side .brand .brand-mark { flex: none; }
+.stat .ic { width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center; font-size: 0; margin-bottom: 10px; color: var(--brand, #c9a24b); background: color-mix(in srgb, var(--brand, #c9a24b) 14%, transparent); border: 1px solid color-mix(in srgb, var(--brand, #c9a24b) 28%, transparent); }
+.btn .nav-ico { vertical-align: -3px; margin-right: 4px; opacity: 1; }

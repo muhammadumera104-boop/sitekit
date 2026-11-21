@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { Icon } from '@/components/Icons';
 
 export const metadata = {
   title: 'SiteForge — Online ordering & store platform',
@@ -57,7 +58,13 @@ export default function Home() {
           {STEPS.map(([t, d], k) => <div key={t}><b>{k + 1}</b><h3>{t}</h3><p>{d}</p></div>)}
         </div>
       </section>
-      <footer className="lp-foot">© {new Date().getFullYear()} SiteForge · Multi-store ordering platform</footer>
+      <footer className="lp-foot">
+        <div className="lp-foot-links">
+          <Link href="/login" className="lp-foot-link"><Icon name="shield" size={18} /> Admin portal</Link>
+          <Link href="/demo" className="lp-foot-link"><Icon name="eye" size={18} /> View demo (no login)</Link>
+        </div>
+        <div>© {new Date().getFullYear()} SiteForge · Multi-store ordering platform</div>
+      </footer>
     </div>
   );
 }
